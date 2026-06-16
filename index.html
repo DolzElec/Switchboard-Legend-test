@@ -7,7 +7,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:'Barlow Condensed','Barlow',system-ui,sans-serif;background:#e8e8e8;min-height:100vh;display:flex;justify-content:center}
-#app{width:100%;max-width:440px;min-height:100vh;display:flex;flex-direction:column;background:#f5f5f5;position:relative}
+#app{width:100%;max-width:480px;min-height:100vh;display:flex;flex-direction:column;background:#f5f5f5;position:relative}
 .topbar{background:#0d1b2e;padding:14px 16px 10px;flex-shrink:0}
 .topbar-label{font-size:10px;font-weight:500;color:rgba(255,255,255,0.55);letter-spacing:1px;text-transform:uppercase}
 .topbar-title{font-size:20px;font-weight:700;color:#fff;margin-top:2px}
@@ -19,22 +19,50 @@ body{font-family:'Barlow Condensed','Barlow',system-ui,sans-serif;background:#e8
 .scroll{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch}
 .section-label{font-size:10px;font-weight:600;color:#999;letter-spacing:0.8px;text-transform:uppercase;margin:10px 0 6px}
 .card{background:#fff;border:0.5px solid #e8e8e8;border-radius:10px;padding:10px 12px;margin-bottom:8px}
-.circuit-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:0.5px solid #e8e8e8;border-radius:10px;margin-bottom:6px;cursor:pointer;transition:background 0.1s}
-.circuit-row:active{background:#f5f5f5}
-.circuit-num{min-width:36px;height:36px;border-radius:7px;background:#0d1b2e;color:#f0a500;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;text-align:center;line-height:1.2;padding:2px}
+
+/* ── Switchboard grid layout ── */
+.sb-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 10px 16px}
+.sb-col{display:flex;flex-direction:column;gap:4px}
+.sb-col-label{font-size:9px;font-weight:700;color:#999;letter-spacing:1px;text-transform:uppercase;text-align:center;padding:4px 0 2px}
+.circuit-card{display:flex;align-items:center;gap:0;border-radius:8px;overflow:hidden;cursor:pointer;border:1px solid #e0e0e0;background:#fff;transition:all 0.1s;min-height:46px}
+.circuit-card:active{transform:scale(0.98);opacity:0.9}
+.phase-tab{width:10px;min-height:46px;flex-shrink:0;align-self:stretch}
+.phase-R{background:#c0392b}
+.phase-W{background:#bdc3c7}
+.phase-B{background:#2980b9}
+.phase-SP{background:#7f8c8d}
+.circuit-card-inner{flex:1;padding:5px 8px;min-width:0}
+.circuit-card-num{font-size:10px;font-weight:700;color:#999;line-height:1}
+.circuit-card-label{font-size:12px;font-weight:600;color:#111;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+.circuit-card-sub{font-size:10px;color:#aaa;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.circuit-card-chip{padding:2px 5px;border-radius:10px;font-size:9px;font-weight:700;flex-shrink:0;margin-right:6px;white-space:nowrap}
+.chip-green{background:#EAF3DE;color:#3B6D11}
+.chip-amber{background:#FAEEDA;color:#854F0B}
+.chip-red{background:#FCEBEB;color:#A32D2D}
+.empty-slot{display:flex;align-items:center;border-radius:8px;border:1px dashed #e0e0e0;background:#fafafa;min-height:46px;overflow:hidden;cursor:default;opacity:0.6}
+
+/* ── Phase legend ── */
+.phase-legend{display:flex;gap:10px;padding:8px 10px;background:#fff;border-radius:8px;margin:0 10px 6px;border:0.5px solid #eee}
+.phase-legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:#666;font-weight:500}
+.phase-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* ── Info rows ── */
 .info-row{display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;border-bottom:0.5px solid #f0f0f0;gap:8px}
 .info-row:last-child{border-bottom:none}
 .info-label{font-size:11px;color:#888;flex-shrink:0;padding-top:1px}
 .info-val{font-size:12px;font-weight:600;color:#111;text-align:right}
-.chip{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;flex-shrink:0;white-space:nowrap}
+
+/* ── Buttons ── */
 .add-btn{background:#0d1b2e;color:#f0a500;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:inherit}
 .add-btn:active{opacity:0.8}
 .add-btn:disabled{opacity:0.45;cursor:not-allowed}
 .ghost-btn{background:transparent;color:#888;border:0.5px solid #ddd;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit}
 .test-row{display:flex;gap:6px;align-items:center;padding:7px 0;border-bottom:0.5px solid #f0f0f0;font-size:11px}
 .test-row:last-child{border-bottom:none}
+
+/* ── Modals ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;justify-content:center;z-index:200}
-.modal-box{background:#fff;border-radius:18px 18px 0 0;padding:20px 18px 36px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto}
+.modal-box{background:#fff;border-radius:18px 18px 0 0;padding:20px 18px 36px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto}
 .modal-title{font-size:15px;font-weight:700;margin-bottom:14px;color:#111}
 .field-label{font-size:10px;font-weight:600;color:#888;letter-spacing:0.5px;text-transform:uppercase;display:block;margin-bottom:4px;margin-top:2px}
 .field-input{width:100%;border:0.5px solid #ddd;border-radius:8px;padding:9px 10px;font-size:14px;font-family:inherit;margin-bottom:10px;background:#fff;color:#111;-webkit-appearance:none;appearance:none}
@@ -52,34 +80,26 @@ body{font-family:'Barlow Condensed','Barlow',system-ui,sans-serif;background:#e8
 .cat-chip.sel{background:#E6F1FB;color:#185FA5;border-color:#378ADD}
 .pri-opt{flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:500;text-align:center;cursor:pointer;border:1.5px solid #ddd;background:#f5f5f5;color:#666}
 .pri-opt.sel{background:#E6F1FB;color:#185FA5;border-color:#378ADD}
+.supply-opt{flex:1;padding:10px 8px;border-radius:8px;font-size:12px;font-weight:600;text-align:center;cursor:pointer;border:1.5px solid #ddd;background:#f5f5f5;color:#666}
+.supply-opt.sel{background:#0d1b2e;color:#f0a500;border-color:#0d1b2e}
 .pin-input{width:100%;border:0.5px solid #ddd;border-radius:8px;padding:10px;font-size:26px;letter-spacing:10px;text-align:center;font-family:monospace;margin-bottom:10px;background:#fff;color:#111}
 .pin-input:focus{outline:none;border-color:#378ADD}
-.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#0d1b2e;color:#f0a500;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:999;white-space:nowrap;pointer-events:none}
 .err-msg{font-size:12px;color:#A32D2D;margin-bottom:10px;text-align:center;display:none}
-@media(min-width:441px){#app{box-shadow:0 0 40px rgba(0,0,0,0.1)}}
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#0d1b2e;color:#f0a500;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:999;white-space:nowrap;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,0.2)}
+.qr-box{background:#f5f5f5;border-radius:10px;padding:12px;text-align:center;margin-top:8px;border:0.5px solid #e0e0e0}
+.qr-url{font-size:11px;color:#378ADD;word-break:break-all;margin-top:6px;font-family:monospace}
+@media(min-width:481px){#app{box-shadow:0 0 40px rgba(0,0,0,0.1)}}
 </style>
 </head>
 <body>
-<div id="app"><div class="center-msg"><div style="font-size:40px">⚡</div><div>Connecting to switchboard…</div></div></div>
+<div id="app"><div class="center-msg"><div style="font-size:40px">⚡</div><div>Connecting…</div></div></div>
 <script>
-// ── Config ──────────────────────────────────────────────────────────────────
-const URL='https://ymbzmszlccgfzdqgxsus.supabase.co';
-const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltYnptc3psY2NnZnpkcWd4c3VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1ODM1NTgsImV4cCI6MjA5NzE1OTU1OH0.Nnk9WN55DTMfwTt0tVoqJ3Z8wb5dB9aRivz9qKrq4Vk';
-
-// ── DB column map (actual Supabase column names) ─────────────────────────────
-// rcd_tests:  id, circuit_id, tested_by(text), test_date, trip_time_ms, result, notes, created_at
-// circuits:   id, board_id, number, label, circuit_type, device_type, phase, cable_size,
-//             install_date, notes, test_interval_months, next_test_due, last_edited_by(text),
-//             last_edited_at, created_at, has_rcd
-// boards:     id, site_id, name, location, qr_code_url, ways, qr_slug, created_at
-// users:      id, site_id, name, pin_hash, role, created_at
-// sites:      id, name, address, notify_email_1, notify_email_2, created_at
-// icon_requests: id, requested_by(text), site_id, fitting_name, category, description,
-//                location_on_job, photo_url, priority, status, created_at
+const DB_URL='https://ymbzmszlccgfzdqgxsus.supabase.co';
+const DB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltYnptc3psY2NnZnpkcWd4c3VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1ODM1NTgsImV4cCI6MjA5NzE1OTU1OH0.Nnk9WN55DTMfwTt0tVoqJ3Z8wb5dB9aRivz9qKrq4Vk';
 
 const sb=async(path,opts={})=>{
-  const r=await fetch(`${URL}/rest/v1/${path}`,{
-    headers:{apikey:KEY,Authorization:`Bearer ${KEY}`,'Content-Type':'application/json',Prefer:'return=representation',...(opts.headers||{})},
+  const r=await fetch(`${DB_URL}/rest/v1/${path}`,{
+    headers:{apikey:DB_KEY,Authorization:`Bearer ${DB_KEY}`,'Content-Type':'application/json',Prefer:'return=representation',...(opts.headers||{})},
     ...opts
   });
   const t=await r.text();
@@ -93,11 +113,16 @@ let S={
   currentUser:null,
   view:'loading',
   selectedBoard:null,selectedSite:null,selectedCircuit:null,
-  tab:'circuits',circuitTab:'info',adminTab:'boards',
-  modal:null
+  tab:'board',circuitTab:'info',adminTab:'boards',
+  modal:null,error:null
 };
-
 const set=patch=>{Object.assign(S,patch);draw();};
+
+// ── QR slug routing ───────────────────────────────────────────────────────────
+function getSlugFromURL(){
+  const p=new URLSearchParams(window.location.search);
+  return p.get('board')||null;
+}
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 async function init(){
@@ -108,42 +133,55 @@ async function init(){
       sb('boards?select=*'),
       sb('users?select=id,name,pin_hash,role,site_id')
     ]);
-    set({sites:sites||[],boards:boards||[],users:users||[],view:'sites'});
+    S.sites=sites||[];S.boards=boards||[];S.users=users||[];
+
+    // QR code direct routing
+    const slug=getSlugFromURL();
+    if(slug){
+      const board=S.boards.find(b=>b.qr_slug===slug);
+      if(board){
+        const site=S.sites.find(s=>s.id===board.site_id)||null;
+        S.selectedBoard=board;S.selectedSite=site;
+        await loadBoard(board,false);
+        return;
+      }
+    }
+    set({view:'sites'});
   }catch(e){
-    set({view:'error',error:'Could not connect to database. Check your internet and try again.\n\n'+e.message});
+    set({view:'error',error:'Could not connect to database.\n\n'+e.message});
   }
 }
 
-async function loadBoard(board){
-  set({view:'loading'});
+async function loadBoard(board,updateState=true){
+  if(updateState)set({view:'loading'});
   try{
     const[circuits,tests]=await Promise.all([
       sb(`circuits?select=*&board_id=eq.${board.id}&order=number.asc`),
       sb(`rcd_tests?select=*&order=test_date.desc`)
     ]);
-    set({circuits:circuits||[],tests:tests||[],view:'board',tab:'circuits'});
+    set({circuits:circuits||[],tests:tests||[],view:'board',tab:'board'});
   }catch(e){
-    set({view:'error',error:'Failed to load board data: '+e.message});
+    set({view:'error',error:'Failed to load board: '+e.message});
   }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function esc(s){
-  return String(s==null?'':s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtDate(d){if(!d)return'—';try{return new Date(d).toLocaleDateString('en-AU');}catch(e){return String(d);}}
+
+function phaseFor(slotNum,supplyType){
+  if(supplyType==='single_phase')return'SP';
+  const p=((slotNum-1)%3);
+  return['R','W','B'][p];
 }
 
-function fmtDate(d){
-  if(!d)return'—';
-  try{return new Date(d).toLocaleDateString('en-AU');}catch(e){return d;}
+function phaseColor(ph){
+  return{R:'#c0392b',W:'#9E9E9E',B:'#2980b9',SP:'#9E9E9E'}[ph]||'#ccc';
 }
 
 function statusColor(c){
   if(!c.has_rcd)return null;
-  const last=S.tests
-    .filter(t=>t.circuit_id===c.id)
-    .sort((a,b)=>new Date(b.test_date)-new Date(a.test_date))[0];
+  const last=S.tests.filter(t=>t.circuit_id===c.id).sort((a,b)=>new Date(b.test_date)-new Date(a.test_date))[0];
   if(!last)return'red';
   const next=new Date(last.test_date);
   next.setMonth(next.getMonth()+(c.test_interval_months||6));
@@ -153,46 +191,24 @@ function statusColor(c){
 
 function chipHtml(status){
   if(!status)return'';
-  const m={
-    green:['#EAF3DE','#3B6D11','RCD OK'],
-    amber:['#FAEEDA','#854F0B','Due soon'],
-    red:['#FCEBEB','#A32D2D','Overdue']
-  };
+  const m={green:['#EAF3DE','#3B6D11','OK'],amber:['#FAEEDA','#854F0B','Due'],red:['#FCEBEB','#A32D2D','OD']};
   const[bg,c,l]=m[status];
-  return`<span style="background:${bg};color:${c};font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;flex-shrink:0">${l}</span>`;
-}
-
-function groupCircuits(){
-  const cs=S.circuits;
-  const em=cs.filter(c=>String(c.number||'').startsWith('EM')||(c.label||'').toLowerCase().includes('emergency'));
-  const emIds=new Set(em.map(c=>c.id));
-  const li=cs.filter(c=>!emIds.has(c.id)&&(String(c.number||'').startsWith('L')||(c.label||'').toLowerCase().match(/light|lamp|batten|oyster|downlight|strip|flood|bollar|wall light/)));
-  const liIds=new Set(li.map(c=>c.id));
-  const po=cs.filter(c=>!emIds.has(c.id)&&!liIds.has(c.id)&&(String(c.number||'').startsWith('P')||(c.label||'').toLowerCase().match(/gpo|power|socket|applian/)));
-  const poIds=new Set(po.map(c=>c.id));
-  const hv=cs.filter(c=>!emIds.has(c.id)&&!liIds.has(c.id)&&!poIds.has(c.id)&&(String(c.number||'').startsWith('H')||(c.label||'').toLowerCase().match(/split|hvac|exhaust|air con|ducted/)));
-  const hvIds=new Set(hv.map(c=>c.id));
-  const ot=cs.filter(c=>!emIds.has(c.id)&&!liIds.has(c.id)&&!poIds.has(c.id)&&!hvIds.has(c.id));
-  return[
-    {label:'Lighting circuits',items:li},
-    {label:'Power circuits',items:po},
-    {label:'HVAC circuits',items:hv},
-    {label:'Emergency circuits',items:em},
-    {label:'Other circuits',items:ot},
-  ].filter(g=>g.items.length);
+  return`<span class="circuit-card-chip" style="background:${bg};color:${c}">${l}</span>`;
 }
 
 function showToast(msg){
-  const t=document.createElement('div');
-  t.className='toast';t.textContent=msg;
-  document.body.appendChild(t);
-  setTimeout(()=>t.remove(),3000);
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);setTimeout(()=>t.remove(),3000);
+}
+
+function boardURL(board){
+  const base=window.location.origin+window.location.pathname;
+  return`${base}?board=${board.qr_slug||board.id}`;
 }
 
 // ── Draw ──────────────────────────────────────────────────────────────────────
 function draw(){
-  const app=document.getElementById('app');
-  if(!app)return;
+  const app=document.getElementById('app');if(!app)return;
   switch(S.view){
     case'loading':app.innerHTML=`<div class="center-msg"><div style="font-size:40px">⚡</div><div>Loading…</div></div>`;break;
     case'error':app.innerHTML=`<div class="center-msg"><div style="font-size:36px">⚠️</div><div style="color:#A32D2D;white-space:pre-wrap;font-size:13px">${esc(S.error)}</div><button class="add-btn" style="margin-top:12px" onclick="init()">Retry</button></div>`;break;
@@ -204,94 +220,158 @@ function draw(){
   if(S.modal)setTimeout(drawModal,10);
 }
 
-// ── Sites list ────────────────────────────────────────────────────────────────
+// ── Sites ─────────────────────────────────────────────────────────────────────
 function drawSites(app){
-  let h=`<div class="topbar">
-    <div class="topbar-label">DolzElec</div>
-    <div class="topbar-title">Switchboard Legend</div>
-    <div class="topbar-sub">Select a switchboard to view</div>
-  </div><div class="scroll">`;
-
-  if(!S.sites.length){
-    h+=`<div class="card" style="text-align:center;padding:32px;color:#aaa">No sites found.<br><span style="font-size:11px">Set one up in the admin panel.</span></div>`;
-  }else{
-    S.sites.forEach(site=>{
-      const siteBoards=S.boards.filter(b=>b.site_id===site.id);
-      h+=`<div class="section-label">${esc(site.name)}</div>`;
-      if(site.address)h+=`<div style="font-size:11px;color:#aaa;margin-bottom:6px">${esc(site.address)}</div>`;
-      if(!siteBoards.length){
-        h+=`<div class="card" style="color:#aaa;font-size:13px;text-align:center;padding:20px">No boards set up yet</div>`;
-      }else{
-        siteBoards.forEach(b=>{
-          h+=`<div class="circuit-row" onclick="selBoard('${b.id}','${site.id}')">
-            <div class="circuit-num" style="font-size:9px;line-height:1.1">DB</div>
-            <div style="flex:1">
-              <div style="font-size:14px;font-weight:600">${esc(b.name)}</div>
-              <div style="font-size:11px;color:#888;margin-top:1px">${esc(b.location||'')}${b.ways?' · '+b.ways+'-way':''}</div>
-            </div>
-            <span style="font-size:22px;color:#ddd;font-weight:300">›</span>
-          </div>`;
-        });
-      }
+  let h=`<div class="topbar"><div class="topbar-label">DolzElec</div><div class="topbar-title">Switchboard Legend</div><div class="topbar-sub">Select a switchboard</div></div><div class="scroll">`;
+  S.sites.forEach(site=>{
+    const siteBoards=S.boards.filter(b=>b.site_id===site.id);
+    h+=`<div class="section-label">${esc(site.name)}</div>`;
+    if(site.address)h+=`<div style="font-size:11px;color:#aaa;margin-bottom:6px">${esc(site.address)}</div>`;
+    if(!siteBoards.length){h+=`<div class="card" style="color:#aaa;font-size:13px;text-align:center;padding:20px">No boards set up yet</div>`;}
+    else siteBoards.forEach(b=>{
+      h+=`<div class="card" style="cursor:pointer;display:flex;align-items:center;gap:12px" onclick="selBoard('${b.id}','${b.site_id||''}')">
+        <div style="width:40px;height:40px;border-radius:8px;background:#0d1b2e;color:#f0a500;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;text-align:center;line-height:1.2">DB</div>
+        <div style="flex:1"><div style="font-size:14px;font-weight:600">${esc(b.name)}</div>
+        <div style="font-size:11px;color:#888;margin-top:1px">${esc(b.location||'')} · ${b.ways||24}-way · ${b.supply_type==='single_phase'?'Single phase':'3-phase'}</div></div>
+        <span style="font-size:22px;color:#ddd;font-weight:300">›</span></div>`;
     });
-  }
+  });
+  if(!S.sites.length)h+=`<div class="card" style="color:#aaa;font-size:13px;text-align:center;padding:32px">No sites found.<br><span style="font-size:11px">Set up in admin panel.</span></div>`;
   h+=`<button class="ghost-btn" style="width:100%;margin-top:16px" onclick="set({view:'admin',adminTab:'boards'})">⚙ Admin panel</button></div>`;
   app.innerHTML=h;
 }
 
 function selBoard(bId,sId){
   S.selectedBoard=S.boards.find(b=>b.id===bId);
-  S.selectedSite=S.sites.find(s=>s.id===sId);
+  S.selectedSite=S.sites.find(s=>s.id===sId)||null;
   loadBoard(S.selectedBoard);
 }
 
-// ── Board view ────────────────────────────────────────────────────────────────
+// ── Board view — switchboard grid ─────────────────────────────────────────────
 function drawBoard(app){
   const b=S.selectedBoard,site=S.selectedSite;
+  const ways=b.ways||24;
+  const half=Math.ceil(ways/2);
+  const isThreePhase=b.supply_type!=='single_phase';
+
+  // Build circuit lookup by slot number
+  const bySlot={};
+  S.circuits.forEach(c=>{
+    const n=parseInt(c.number);
+    if(!isNaN(n))bySlot[n]=c;
+  });
+
   let h=`<div class="topbar">
     <div class="topbar-label">DolzElec — Switchboard</div>
     <div class="topbar-title">${esc(b.name)}</div>
-    <div class="topbar-sub">${esc(b.location||'')}${site?' · '+esc(site.name):''}</div>
+    <div class="topbar-sub">${esc(b.location||'')}${site?' · '+esc(site.name):''} · ${ways}-way · ${isThreePhase?'3-phase':'Single phase'}</div>
   </div>
   <div class="nav-tabs">
-    <div class="nav-tab ${S.tab==='circuits'?'active':''}" onclick="set({tab:'circuits'})">Circuits</div>
+    <div class="nav-tab ${S.tab==='board'?'active':''}" onclick="set({tab:'board'})">Board</div>
+    <div class="nav-tab ${S.tab==='list'?'active':''}" onclick="set({tab:'list'})">List view</div>
     <div class="nav-tab ${S.tab==='plan'?'active':''}" onclick="set({tab:'plan'})">Floor plan</div>
-  </div>
-  <div class="scroll">`;
+  </div>`;
 
-  if(S.tab==='circuits'){
+  if(S.tab==='board'){
+    // Phase legend for 3-phase
+    if(isThreePhase){
+      h+=`<div class="phase-legend">
+        <div class="phase-legend-item"><div class="phase-dot" style="background:#c0392b"></div>Red phase</div>
+        <div class="phase-legend-item"><div class="phase-dot" style="background:#9E9E9E"></div>White phase</div>
+        <div class="phase-legend-item"><div class="phase-dot" style="background:#2980b9"></div>Blue phase</div>
+      </div>`;
+    }
+
+    h+=`<div class="sb-grid">
+      <div class="sb-col">
+        <div class="sb-col-label">Circuits 1–${half}</div>`;
+
+    // Left column: 1 to half
+    for(let i=1;i<=half;i++){
+      const c=bySlot[i];
+      const ph=phaseFor(i,b.supply_type);
+      const phColor=phaseColor(ph);
+      if(c){
+        const status=statusColor(c);
+        h+=`<div class="circuit-card" onclick="selCircuit('${c.id}')">
+          <div class="phase-tab" style="background:${phColor}"></div>
+          <div class="circuit-card-inner">
+            <div class="circuit-card-num">Circuit ${i}</div>
+            <div class="circuit-card-label">${esc(c.label||'Unlabelled')}</div>
+            ${c.device_type?`<div class="circuit-card-sub">${esc(c.device_type)}</div>`:''}
+          </div>
+          ${chipHtml(status)}
+        </div>`;
+      }else{
+        h+=`<div class="empty-slot">
+          <div class="phase-tab" style="background:${phColor};opacity:0.3"></div>
+          <div style="padding:5px 8px"><div style="font-size:10px;font-weight:700;color:#ccc">Circuit ${i}</div><div style="font-size:11px;color:#ddd;margin-top:1px">Empty</div></div>
+        </div>`;
+      }
+    }
+
+    h+=`</div><div class="sb-col"><div class="sb-col-label">Circuits ${half+1}–${ways}</div>`;
+
+    // Right column: half+1 to ways
+    for(let i=half+1;i<=ways;i++){
+      const c=bySlot[i];
+      const ph=phaseFor(i,b.supply_type);
+      const phColor=phaseColor(ph);
+      if(c){
+        const status=statusColor(c);
+        h+=`<div class="circuit-card" onclick="selCircuit('${c.id}')">
+          <div class="phase-tab" style="background:${phColor}"></div>
+          <div class="circuit-card-inner">
+            <div class="circuit-card-num">Circuit ${i}</div>
+            <div class="circuit-card-label">${esc(c.label||'Unlabelled')}</div>
+            ${c.device_type?`<div class="circuit-card-sub">${esc(c.device_type)}</div>`:''}
+          </div>
+          ${chipHtml(status)}
+        </div>`;
+      }else{
+        h+=`<div class="empty-slot">
+          <div class="phase-tab" style="background:${phColor};opacity:0.3"></div>
+          <div style="padding:5px 8px"><div style="font-size:10px;font-weight:700;color:#ccc">Circuit ${i}</div><div style="font-size:11px;color:#ddd;margin-top:1px">Empty</div></div>
+        </div>`;
+      }
+    }
+
+    h+=`</div></div>`;
+
+  }else if(S.tab==='list'){
+    // List view — group by type
+    h+=`<div class="scroll">`;
     if(!S.circuits.length){
-      h+=`<div class="card" style="text-align:center;padding:40px;color:#aaa"><p style="font-size:15px;margin-bottom:8px">No circuits yet</p><p style="font-size:12px">Add circuits via the admin panel</p></div>`;
+      h+=`<div class="card" style="text-align:center;padding:40px;color:#aaa">No circuits added yet</div>`;
     }else{
-      groupCircuits().forEach(g=>{
-        h+=`<div class="section-label">${g.label}</div>`;
-        g.items.forEach(c=>{
-          const num=esc(c.number||'');
-          const fs=num.length>3?8:num.length>2?9:num.length>1?11:13;
-          h+=`<div class="circuit-row" onclick="selCircuit('${c.id}')">
-            <div class="circuit-num" style="font-size:${fs}px">${num}</div>
-            <div style="flex:1">
-              <div style="font-size:14px;font-weight:500">${esc(c.label||'Unlabelled circuit')}</div>
-              <div style="font-size:11px;color:#888;margin-top:1px">${esc(c.device_type||'—')}${c.phase?' · '+esc(c.phase):''}</div>
-            </div>
-            ${chipHtml(statusColor(c))}
-          </div>`;
-        });
+      S.circuits.forEach(c=>{
+        const status=statusColor(c);
+        const ph=phaseFor(parseInt(c.number)||1,b.supply_type);
+        h+=`<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#fff;border:0.5px solid #e8e8e8;border-radius:10px;margin-bottom:6px;cursor:pointer" onclick="selCircuit('${c.id}')">
+          <div style="width:4px;align-self:stretch;border-radius:2px;background:${phaseColor(ph)};flex-shrink:0"></div>
+          <div style="width:34px;height:34px;border-radius:7px;background:#0d1b2e;color:#f0a500;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${esc(c.number)}</div>
+          <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:500">${esc(c.label||'Unlabelled')}</div>
+          <div style="font-size:11px;color:#888;margin-top:1px">${esc(c.device_type||'—')}${c.phase?' · '+esc(c.phase):''}</div></div>
+          ${chipHtml(status)}</div>`;
       });
     }
+    h+=`</div>`;
   }else{
-    h+=`<div class="card" style="text-align:center;padding:40px 20px;color:#aaa">
+    h+=`<div class="scroll"><div class="card" style="text-align:center;padding:40px 20px;color:#aaa">
       <div style="font-size:36px;margin-bottom:10px">🗺️</div>
       <p style="font-size:14px;font-weight:500;margin-bottom:6px">Floor plan editor</p>
-      <p style="font-size:12px;line-height:1.6">Upload your site plan and place fitting icons.<br>Coming in the next update.</p>
-    </div>`;
+      <p style="font-size:12px;line-height:1.6">Coming in the next update.</p>
+    </div></div>`;
   }
 
-  h+=`</div>
-  <div class="bottombar">
-    <button class="back-btn" style="padding:0;font-size:13px" onclick="set({view:'sites',selectedBoard:null,circuits:[],tests:[]})">← All boards</button>
-    <span style="font-size:10px;color:rgba(255,255,255,0.4)">${S.currentUser?'Logged in: '+esc(S.currentUser.name):'Tap Edit to log in'}</span>
+  // Only show bottombar back button if not reached via QR
+  const viaQR=!!getSlugFromURL();
+  h+=`<div class="bottombar">
+    ${viaQR?`<span style="font-size:11px;color:rgba(255,255,255,0.5)">⚡ ${esc(b.name)}</span>`:
+    `<button class="back-btn" style="padding:0;font-size:13px" onclick="set({view:'sites',selectedBoard:null,circuits:[],tests:[]})">← All boards</button>`}
+    <span style="font-size:10px;color:rgba(255,255,255,0.4)">${S.currentUser?'✓ '+esc(S.currentUser.name):'Tap Edit to log in'}</span>
   </div>`;
+
   app.innerHTML=h;
 }
 
@@ -302,14 +382,9 @@ function selCircuit(id){
 
 // ── Circuit detail ────────────────────────────────────────────────────────────
 function drawCircuit(app){
-  const c=S.selectedCircuit;
-  if(!c){set({view:'board'});return;}
-
-  const myTests=S.tests
-    .filter(t=>t.circuit_id===c.id)
-    .sort((a,b)=>new Date(b.test_date)-new Date(a.test_date));
+  const c=S.selectedCircuit;if(!c){set({view:'board'});return;}
+  const myTests=S.tests.filter(t=>t.circuit_id===c.id).sort((a,b)=>new Date(b.test_date)-new Date(a.test_date));
   const last=myTests[0];
-
   let nextDue=null,nextColor='#888';
   if(last&&last.test_date){
     nextDue=new Date(last.test_date);
@@ -317,53 +392,42 @@ function drawCircuit(app){
     const diff=(nextDue-new Date())/86400000;
     nextColor=diff<0?'#A32D2D':diff<30?'#854F0B':'#3B6D11';
   }
+  const b=S.selectedBoard;
+  const ph=phaseFor(parseInt(c.number)||1,b?.supply_type||'three_phase');
+  const phColor=phaseColor(ph);
+  const phLabel={R:'Red phase',W:'White phase',B:'Blue phase',SP:'Single phase'}[ph]||'—';
 
-  const num=esc(c.number||'');
   let h=`<div style="background:#0d1b2e;flex-shrink:0">
-    <button class="back-btn" onclick="set({view:'board',selectedCircuit:null,modal:null})">← All circuits</button>
-    <div style="padding:2px 16px 10px">
-      <div style="font-size:18px;font-weight:700;color:#fff">${num} — ${esc(c.label||'Unlabelled circuit')}</div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px">${esc(c.device_type||'—')}${c.phase?' · '+esc(c.phase):''}</div>
+    <button class="back-btn" onclick="set({view:'board',selectedCircuit:null,modal:null})">← Board</button>
+    <div style="padding:2px 16px 10px;display:flex;align-items:flex-start;gap:10px">
+      <div style="width:6px;border-radius:3px;background:${phColor};align-self:stretch;flex-shrink:0;margin-top:2px"></div>
+      <div><div style="font-size:18px;font-weight:700;color:#fff">Circuit ${esc(c.number)} — ${esc(c.label||'Unlabelled')}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px">${esc(c.device_type||'—')} · ${phLabel}</div></div>
     </div>
     <div class="nav-tabs">
       <div class="nav-tab ${S.circuitTab==='info'?'active':''}" onclick="set({circuitTab:'info'})">Info</div>
       <div class="nav-tab ${S.circuitTab==='rcd'?'active':''}" onclick="set({circuitTab:'rcd'})">RCD Tests</div>
     </div>
-  </div>
-  <div class="scroll">`;
+  </div><div class="scroll">`;
 
   if(S.circuitTab==='info'){
     const fields=[
-      ['Circuit number',num],
+      ['Circuit number',esc(c.number||'—')],
+      ['Phase',phLabel],
       ['Protection device',esc(c.device_type||'—')],
-      ['Phase',esc(c.phase||'—')],
       ['Cable size',esc(c.cable_size||'—')],
       ['Install date',fmtDate(c.install_date)],
       ['Last edited by',c.last_edited_by?esc(c.last_edited_by)+(c.last_edited_at?' · '+fmtDate(c.last_edited_at):''):'—']
     ];
-    h+=`<div class="card">${fields.map(([l,v],i)=>`
-      <div class="info-row"${i===fields.length-1?' style="border-bottom:none"':''}>
-        <span class="info-label">${l}</span>
-        <span class="info-val">${v}</span>
-      </div>`).join('')}</div>`;
-
-    if(c.notes){
-      h+=`<div class="card">
-        <div class="section-label" style="margin-top:0">Notes</div>
-        <p style="font-size:13px;color:#333;line-height:1.6;margin-top:5px">${esc(c.notes)}</p>
-      </div>`;
-    }
+    h+=`<div class="card">${fields.map(([l,v],i)=>`<div class="info-row"${i===fields.length-1?' style="border-bottom:none"':''}><span class="info-label">${l}</span><span class="info-val">${v}</span></div>`).join('')}</div>`;
+    if(c.notes)h+=`<div class="card"><div class="section-label" style="margin-top:0">Notes</div><p style="font-size:13px;color:#333;line-height:1.6;margin-top:5px">${esc(c.notes)}</p></div>`;
     h+=`<div style="display:flex;gap:8px;margin-top:4px">
       <button class="add-btn" style="flex:1;justify-content:center" onclick="openModal('edit')">✏ Edit circuit</button>
       <button class="ghost-btn" onclick="openModal('request')">+ Request icon</button>
     </div>`;
-
   }else{
     if(!c.has_rcd){
-      h+=`<div class="card" style="text-align:center;padding:28px">
-        <p style="font-size:13px;color:#888;margin-bottom:14px">No RCD protection assigned to this circuit</p>
-        <button class="add-btn" style="margin:0 auto;justify-content:center" onclick="openModal('edit')">Enable RCD tracking</button>
-      </div>`;
+      h+=`<div class="card" style="text-align:center;padding:28px"><p style="font-size:13px;color:#888;margin-bottom:14px">No RCD protection on this circuit</p><button class="add-btn" style="margin:0 auto;justify-content:center" onclick="openModal('edit')">Enable RCD tracking</button></div>`;
     }else{
       const tf=[
         ['Test interval',(c.test_interval_months||6)+' months',''],
@@ -371,28 +435,10 @@ function drawCircuit(app){
         ['Last result',last?(last.result||'').toUpperCase():'—',last?'color:'+(last.result==='pass'?'#3B6D11':'#A32D2D'):''],
         ['Next due',nextDue?fmtDate(nextDue):'—','color:'+nextColor]
       ];
-      h+=`<div class="card">${tf.map(([l,v,st],i)=>`
-        <div class="info-row"${i===tf.length-1?' style="border-bottom:none"':''}>
-          <span class="info-label">${l}</span>
-          <span class="info-val"${st?' style="'+st+'"':''}>${v}</span>
-        </div>`).join('')}</div>`;
-
-      h+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div class="section-label" style="margin:0">Test history</div>
-        <button class="add-btn" onclick="openModal('rcd')">+ Log test</button>
-      </div>`;
-
-      if(!myTests.length){
-        h+=`<div class="card" style="text-align:center;color:#aaa;font-size:13px;padding:24px">No tests logged yet</div>`;
-      }else{
-        h+=`<div class="card">${myTests.map((t,i)=>`
-          <div class="test-row"${i===myTests.length-1?' style="border-bottom:none"':''}>
-            <span style="color:#888;width:80px;flex-shrink:0">${fmtDate(t.test_date)}</span>
-            <span style="font-weight:600;width:50px;flex-shrink:0">${t.trip_time_ms!=null?t.trip_time_ms+'ms':'—'}</span>
-            <span style="flex:1;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.tested_by||'—')}</span>
-            <span style="font-weight:700;font-size:10px;color:${t.result==='pass'?'#3B6D11':'#A32D2D'};flex-shrink:0">${(t.result||'').toUpperCase()}</span>
-          </div>`).join('')}</div>`;
-      }
+      h+=`<div class="card">${tf.map(([l,v,st],i)=>`<div class="info-row"${i===3?' style="border-bottom:none"':''}><span class="info-label">${l}</span><span class="info-val"${st?' style="'+st+'"':''}>${v}</span></div>`).join('')}</div>`;
+      h+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div class="section-label" style="margin:0">Test history</div><button class="add-btn" onclick="openModal('rcd')">+ Log test</button></div>`;
+      if(!myTests.length){h+=`<div class="card" style="text-align:center;color:#aaa;font-size:13px;padding:24px">No tests logged yet</div>`;}
+      else h+=`<div class="card">${myTests.map((t,i)=>`<div class="test-row"${i===myTests.length-1?' style="border-bottom:none"':''}><span style="color:#888;width:80px;flex-shrink:0">${fmtDate(t.test_date)}</span><span style="font-weight:600;width:50px;flex-shrink:0">${t.trip_time_ms!=null?t.trip_time_ms+'ms':'—'}</span><span style="flex:1;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.tested_by||'—')}</span><span style="font-weight:700;font-size:10px;color:${t.result==='pass'?'#3B6D11':'#A32D2D'};flex-shrink:0">${(t.result||'').toUpperCase()}</span></div>`).join('')}</div>`;
     }
   }
   h+=`</div>`;
@@ -408,202 +454,106 @@ function drawModal(){
   if(!S.modal)return;
   const c=S.selectedCircuit;
   const loggedIn=!!S.currentUser;
-  const pinField=`<label class="field-label">Your PIN</label>
-    <input class="pin-input" id="m-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
-    <div class="err-msg" id="m-err"></div>`;
+  const pinField=`<label class="field-label">Your PIN</label><input class="pin-input" id="m-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••"><div class="err-msg" id="m-err"></div>`;
   const whoLine=loggedIn?`<div style="font-size:12px;color:#555;margin-bottom:14px">As: <strong>${esc(S.currentUser.name)}</strong></div>`:`<div class="info-note">Enter your PIN — edits are stamped with your name</div>`;
-
   let body='';
+
   if(S.modal==='edit'&&c){
-    body=`<div class="modal-title">Edit — Circuit ${esc(c.number)}</div>
-      ${whoLine}
-      <label class="field-label">Label</label>
-      <input class="field-input" id="e-label" value="${esc(c.label||'')}" placeholder="e.g. Kitchen Appliances">
-      <label class="field-label">Protection device</label>
-      <input class="field-input" id="e-device" value="${esc(c.device_type||'')}" placeholder="e.g. 20A MCB + RCD">
-      <label class="field-label">Phase</label>
-      <input class="field-input" id="e-phase" value="${esc(c.phase||'')}" placeholder="e.g. Phase A">
-      <label class="field-label">Cable size</label>
-      <input class="field-input" id="e-cable" value="${esc(c.cable_size||'')}" placeholder="e.g. 2.5mm² TPS">
-      <label class="field-label">Notes</label>
-      <textarea class="field-textarea" id="e-notes" placeholder="Any notes about this circuit…">${esc(c.notes||'')}</textarea>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-        <input type="checkbox" id="e-rcd" ${c.has_rcd?'checked':''}>
-        <label for="e-rcd" style="font-size:13px">Has RCD protection</label>
-      </div>
-      <div id="e-interval" style="${c.has_rcd?'':'display:none'}">
+    body=`<div class="modal-title">Edit — Circuit ${esc(c.number)}</div>${whoLine}
+      <label class="field-label">Label</label><input class="field-input" id="e-label" value="${esc(c.label||'')}" placeholder="e.g. Kitchen Appliances">
+      <label class="field-label">Protection device</label><input class="field-input" id="e-device" value="${esc(c.device_type||'')}" placeholder="e.g. 20A MCB + RCD">
+      <label class="field-label">Cable size</label><input class="field-input" id="e-cable" value="${esc(c.cable_size||'')}" placeholder="e.g. 2.5mm² TPS">
+      <label class="field-label">Notes</label><textarea class="field-textarea" id="e-notes" placeholder="Any notes…">${esc(c.notes||'')}</textarea>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><input type="checkbox" id="e-rcd" ${c.has_rcd?'checked':''}><label for="e-rcd" style="font-size:13px">Has RCD protection</label></div>
+      <div id="e-interval-wrap" style="${c.has_rcd?'':'display:none'}">
         <label class="field-label">Test interval</label>
-        <select class="field-input" id="e-interval-val">
-          ${[3,6,12,24].map(m=>`<option value="${m}"${(c.test_interval_months||6)===m?' selected':''}>${m} months</option>`).join('')}
-        </select>
+        <select class="field-input" id="e-interval">${[3,6,12,24].map(m=>`<option value="${m}"${(c.test_interval_months||6)===m?' selected':''}>${m} months</option>`).join('')}</select>
       </div>
       ${!loggedIn?pinField:''}
       <button class="primary-btn" id="m-save" onclick="saveEdit()">Save changes</button>
       <button class="cancel-btn" onclick="closeModal()">Cancel</button>`;
-  }
-  else if(S.modal==='rcd'&&c){
+  }else if(S.modal==='rcd'&&c){
     const today=new Date().toISOString().split('T')[0];
-    body=`<div class="modal-title">Log RCD test</div>
-      <p style="font-size:12px;color:#888;margin-bottom:14px">${esc(c.label||'Circuit '+c.number)}</p>
-      ${whoLine}
-      <label class="field-label">Date</label>
-      <input class="field-input" id="r-date" type="date" value="${today}">
-      <label class="field-label">Trip time (ms)</label>
-      <input class="field-input" id="r-ms" type="number" inputmode="decimal" placeholder="e.g. 18">
-      <label class="field-label">Result</label>
-      <select class="field-input" id="r-result">
-        <option value="pass">Pass (&lt;300ms)</option>
-        <option value="fail">Fail</option>
-      </select>
-      <label class="field-label">Notes (optional)</label>
-      <textarea class="field-textarea" id="r-notes" placeholder="Any observations…"></textarea>
+    body=`<div class="modal-title">Log RCD test</div><p style="font-size:12px;color:#888;margin-bottom:14px">${esc(c.label||'Circuit '+c.number)}</p>${whoLine}
+      <label class="field-label">Date</label><input class="field-input" id="r-date" type="date" value="${today}">
+      <label class="field-label">Trip time (ms)</label><input class="field-input" id="r-ms" type="number" inputmode="decimal" placeholder="e.g. 18">
+      <label class="field-label">Result</label><select class="field-input" id="r-result"><option value="pass">Pass (&lt;300ms)</option><option value="fail">Fail</option></select>
+      <label class="field-label">Notes (optional)</label><textarea class="field-textarea" id="r-notes" placeholder="Any observations…"></textarea>
       ${!loggedIn?pinField:''}
       <button class="primary-btn" id="m-save" onclick="saveRCD()">Save test</button>
       <button class="cancel-btn" onclick="closeModal()">Cancel</button>`;
-  }
-  else if(S.modal==='request'){
-    body=`<div class="modal-title">Request a new icon</div>
-      <p style="font-size:12px;color:#888;margin-bottom:14px;line-height:1.5">Come across a fitting not in the library? Declan will add it.</p>
-      ${whoLine}
-      <label class="field-label">Fitting / device name *</label>
-      <input class="field-input" id="q-name" placeholder="e.g. High bay fitting, weatherproof GPO…">
+  }else if(S.modal==='request'){
+    body=`<div class="modal-title">Request a new icon</div><p style="font-size:12px;color:#888;margin-bottom:14px;line-height:1.5">Come across a fitting not in the library? Declan will add it.</p>${whoLine}
+      <label class="field-label">Fitting / device name *</label><input class="field-input" id="q-name" placeholder="e.g. High bay fitting…">
       <label class="field-label">Category</label>
-      <div style="margin-bottom:12px" id="q-cats">
-        ${['Lighting','Emergency lighting','Power / GPO','Switching & control','HVAC','Other'].map(cat=>`<span class="cat-chip" data-cat="${cat}" onclick="toggleCat(this)">${cat}</span>`).join('')}
-      </div>
-      <label class="field-label">Description</label>
-      <textarea class="field-textarea" id="q-desc" placeholder="Mounting type, size, brand if relevant…"></textarea>
-      <label class="field-label">Where it appears on this job</label>
-      <input class="field-input" id="q-loc" placeholder="e.g. DB1 — Circuit L3, north wall">
+      <div style="margin-bottom:12px">${['Lighting','Emergency lighting','Power / GPO','Switching & control','HVAC','Other'].map(cat=>`<span class="cat-chip" data-cat="${cat}" onclick="toggleCat(this)">${cat}</span>`).join('')}</div>
+      <label class="field-label">Description</label><textarea class="field-textarea" id="q-desc" placeholder="Mounting type, size, brand…"></textarea>
+      <label class="field-label">Where on this job</label><input class="field-input" id="q-loc" placeholder="e.g. DB1 — Circuit 3, north wall">
       <label class="field-label" style="margin-bottom:6px">Priority</label>
-      <div style="display:flex;gap:8px;margin-bottom:14px">
-        <div class="pri-opt sel" id="pri-normal" onclick="selPri('normal')">Normal — when you can</div>
-        <div class="pri-opt" id="pri-urgent" onclick="selPri('urgent')">Urgent — need it now</div>
-      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px"><div class="pri-opt sel" id="pri-normal" onclick="selPri('normal')">Normal</div><div class="pri-opt" id="pri-urgent" onclick="selPri('urgent')">Urgent</div></div>
       ${!loggedIn?pinField:''}
       <button class="primary-btn" onclick="saveRequest()">Submit request</button>
       <button class="cancel-btn" onclick="closeModal()">Cancel</button>`;
   }
 
   if(!body)return;
-  const o=document.createElement('div');
-  o.className='modal-overlay';
+  const o=document.createElement('div');o.className='modal-overlay';
   o.onclick=e=>{if(e.target===o)closeModal();};
   o.innerHTML=`<div class="modal-box">${body}</div>`;
   document.getElementById('app').appendChild(o);
 
-  // toggle RCD interval visibility
   const rcdCb=document.getElementById('e-rcd');
   if(rcdCb)rcdCb.addEventListener('change',()=>{
-    const iv=document.getElementById('e-interval');
-    if(iv)iv.style.display=rcdCb.checked?'':'none';
+    const w=document.getElementById('e-interval-wrap');if(w)w.style.display=rcdCb.checked?'':'none';
   });
 }
 
-window._cat='';
-window._pri='normal';
-function toggleCat(el){
-  document.querySelectorAll('.cat-chip').forEach(c=>c.classList.remove('sel'));
-  el.classList.add('sel');window._cat=el.dataset.cat||'';
-}
-function selPri(p){
-  window._pri=p;
-  ['normal','urgent'].forEach(id=>{
-    const el=document.getElementById('pri-'+id);
-    if(el)el.classList.toggle('sel',id===p);
-  });
-}
+window._cat='';window._pri='normal';
+function toggleCat(el){document.querySelectorAll('.cat-chip').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');window._cat=el.dataset.cat||'';}
+function selPri(p){window._pri=p;['normal','urgent'].forEach(id=>{const el=document.getElementById('pri-'+id);if(el)el.classList.toggle('sel',id===p);});}
 
 function getPin(){
   if(S.currentUser)return S.currentUser;
   const val=(document.getElementById('m-pin')?.value||'').trim();
   const user=S.users.find(u=>u.pin_hash===val);
-  if(!user){
-    const err=document.getElementById('m-err');
-    if(err){err.style.display='block';err.textContent='Incorrect PIN — try again';}
-  }
+  if(!user){const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Incorrect PIN — try again';}}
   return user||null;
 }
 
-// ── Save edit ─────────────────────────────────────────────────────────────────
 async function saveEdit(){
   const user=getPin();if(!user)return;
   const btn=document.getElementById('m-save');if(btn)btn.disabled=true;
-  const data={
-    label:document.getElementById('e-label')?.value||null,
-    device_type:document.getElementById('e-device')?.value||null,
-    phase:document.getElementById('e-phase')?.value||null,
-    cable_size:document.getElementById('e-cable')?.value||null,
-    notes:document.getElementById('e-notes')?.value||null,
-    has_rcd:document.getElementById('e-rcd')?.checked||false,
-    test_interval_months:parseInt(document.getElementById('e-interval-val')?.value)||6,
-    last_edited_by:user.name,
-    last_edited_at:new Date().toISOString()
-  };
+  const data={label:document.getElementById('e-label')?.value||null,device_type:document.getElementById('e-device')?.value||null,cable_size:document.getElementById('e-cable')?.value||null,notes:document.getElementById('e-notes')?.value||null,has_rcd:document.getElementById('e-rcd')?.checked||false,test_interval_months:parseInt(document.getElementById('e-interval')?.value)||6,last_edited_by:user.name,last_edited_at:new Date().toISOString()};
   try{
     const res=await sb(`circuits?id=eq.${S.selectedCircuit.id}`,{method:'PATCH',body:JSON.stringify(data)});
     const updated=Array.isArray(res)?res[0]:res;
-    S.circuits=S.circuits.map(c=>c.id===updated.id?updated:c);
-    S.selectedCircuit=updated;S.currentUser=user;S.modal=null;
+    S.circuits=S.circuits.map(c=>c.id===updated.id?updated:c);S.selectedCircuit=updated;S.currentUser=user;S.modal=null;
     draw();showToast('✓ Circuit saved');
-  }catch(e){
-    if(btn)btn.disabled=false;
-    const err=document.getElementById('m-err');
-    if(err){err.style.display='block';err.textContent='Save failed: '+e.message;}
-  }
+  }catch(e){if(btn)btn.disabled=false;const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Save failed: '+e.message;}}
 }
 
-// ── Save RCD test ─────────────────────────────────────────────────────────────
 async function saveRCD(){
   const user=getPin();if(!user)return;
   const btn=document.getElementById('m-save');if(btn)btn.disabled=true;
   const msVal=document.getElementById('r-ms')?.value;
-  const data={
-    circuit_id:S.selectedCircuit.id,
-    test_date:document.getElementById('r-date')?.value,
-    trip_time_ms:msVal?parseFloat(msVal):null,
-    result:document.getElementById('r-result')?.value||'pass',
-    tested_by:user.name,
-    notes:document.getElementById('r-notes')?.value||null
-  };
+  const data={circuit_id:S.selectedCircuit.id,test_date:document.getElementById('r-date')?.value,trip_time_ms:msVal?parseFloat(msVal):null,result:document.getElementById('r-result')?.value||'pass',tested_by:user.name,notes:document.getElementById('r-notes')?.value||null};
   try{
     const res=await sb('rcd_tests',{method:'POST',body:JSON.stringify(data)});
     const nt=Array.isArray(res)?res[0]:res;
     S.tests=[nt,...S.tests];S.currentUser=user;S.modal=null;
     draw();showToast('✓ Test logged');
-  }catch(e){
-    if(btn)btn.disabled=false;
-    const err=document.getElementById('m-err');
-    if(err){err.style.display='block';err.textContent='Save failed: '+e.message;}
-  }
+  }catch(e){if(btn)btn.disabled=false;const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Save failed: '+e.message;}}
 }
 
-// ── Save icon request ─────────────────────────────────────────────────────────
 async function saveRequest(){
   const user=getPin();if(!user)return;
   const name=(document.getElementById('q-name')?.value||'').trim();
-  if(!name){
-    const err=document.getElementById('m-err');
-    if(err){err.style.display='block';err.textContent='Please enter the fitting name.';}
-    return;
-  }
-  const data={
-    fitting_name:name,
-    category:window._cat||null,
-    description:document.getElementById('q-desc')?.value||null,
-    location_on_job:document.getElementById('q-loc')?.value||null,
-    priority:window._pri||'normal',
-    requested_by:user.name,
-    site_id:S.selectedSite?.id||S.sites[0]?.id||null
-  };
+  if(!name){const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Please enter the fitting name.';}return;}
+  const data={fitting_name:name,category:window._cat||null,description:document.getElementById('q-desc')?.value||null,location_on_job:document.getElementById('q-loc')?.value||null,priority:window._pri||'normal',requested_by:user.name,site_id:S.selectedSite?.id||S.sites[0]?.id||null};
   try{
     await sb('icon_requests',{method:'POST',body:JSON.stringify(data)});
-    S.currentUser=user;S.modal=null;
-    draw();showToast('✓ Request sent — Declan notified');
-  }catch(e){
-    const err=document.getElementById('m-err');
-    if(err){err.style.display='block';err.textContent='Failed: '+e.message;}
-  }
+    S.currentUser=user;S.modal=null;draw();showToast('✓ Request sent — Declan notified');
+  }catch(e){const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Failed: '+e.message;}}
 }
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
@@ -611,10 +561,7 @@ function drawAdmin(app){
   const t=S.adminTab||'boards';
   let h=`<div style="background:#0d1b2e;flex-shrink:0">
     <button class="back-btn" onclick="set({view:'sites'})">← Back</button>
-    <div style="padding:2px 16px 10px">
-      <div style="font-size:18px;font-weight:700;color:#fff">Admin Panel</div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px">${esc(S.sites[0]?.name||'')}</div>
-    </div>
+    <div style="padding:2px 16px 10px"><div style="font-size:18px;font-weight:700;color:#fff">Admin Panel</div><div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px">${esc(S.sites[0]?.name||'')}</div></div>
     <div class="nav-tabs">
       <div class="nav-tab ${t==='boards'?'active':''}" onclick="set({adminTab:'boards'})">Boards</div>
       <div class="nav-tab ${t==='users'?'active':''}" onclick="set({adminTab:'users'})">Users & PINs</div>
@@ -624,28 +571,31 @@ function drawAdmin(app){
   if(t==='boards'){
     if(!S.boards.length)h+=`<div class="card" style="color:#aaa;font-size:13px;text-align:center;padding:24px">No boards yet</div>`;
     S.boards.forEach(b=>{
+      const url=boardURL(b);
       h+=`<div class="card">
         <div style="font-weight:600;font-size:14px">${esc(b.name)}</div>
-        <div style="font-size:11px;color:#888;margin-top:3px">${esc(b.location||'')}${b.ways?' · '+b.ways+'-way':''}</div>
-        <div style="font-size:10px;color:#bbb;margin-top:5px;word-break:break-all">QR URL: ${esc(b.qr_code_url||b.qr_slug||b.id)}</div>
+        <div style="font-size:11px;color:#888;margin-top:3px">${esc(b.location||'')} · ${b.ways||24}-way · ${b.supply_type==='single_phase'?'Single phase':'3-phase'}</div>
+        <div class="qr-box">
+          <div style="font-size:10px;font-weight:600;color:#999;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px">QR code URL</div>
+          <div class="qr-url">${esc(url)}</div>
+          <button onclick="copyURL('${esc(url)}')" style="margin-top:8px;background:#0d1b2e;color:#f0a500;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">Copy URL</button>
+        </div>
       </div>`;
     });
     h+=`<button class="add-btn" style="width:100%;justify-content:center;margin-top:4px" onclick="openAddBoard()">+ Add switchboard</button>`;
   }else{
     h+=`<div class="info-note">Each person has a unique 4-digit PIN. All edits and test logs are stamped with their name.</div>`;
-    S.users.forEach(u=>{
-      h+=`<div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="font-weight:600;font-size:14px">${esc(u.name)}</span>
-          <span style="font-size:16px;letter-spacing:5px;color:#ccc">••••</span>
-        </div>
-        <div style="font-size:11px;color:#888;margin-top:3px">${esc(u.role||'editor')}</div>
-      </div>`;
-    });
+    S.users.forEach(u=>{h+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;font-size:14px">${esc(u.name)}</span><span style="font-size:16px;letter-spacing:5px;color:#ccc">••••</span></div><div style="font-size:11px;color:#888;margin-top:3px">${esc(u.role||'editor')}</div></div>`;});
     h+=`<button class="add-btn" style="width:100%;justify-content:center;margin-top:4px" onclick="openAddUser()">+ Add user</button>`;
   }
   h+=`</div>`;
   app.innerHTML=h;
+}
+
+function copyURL(url){
+  navigator.clipboard?.writeText(url).then(()=>showToast('✓ URL copied')).catch(()=>{
+    const t=document.createElement('textarea');t.value=url;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();showToast('✓ URL copied');
+  });
 }
 
 function openAddBoard(){
@@ -653,39 +603,48 @@ function openAddBoard(){
   o.onclick=e=>{if(e.target===o)o.remove();};
   o.innerHTML=`<div class="modal-box">
     <div class="modal-title">Add switchboard</div>
-    <label class="field-label">Board name</label>
-    <input class="field-input" id="nb-name" placeholder="e.g. Distribution Board 1">
-    <label class="field-label">Location</label>
-    <input class="field-input" id="nb-loc" placeholder="e.g. Level 2, Main Building">
-    <label class="field-label">Number of ways</label>
-    <select class="field-input" id="nb-ways">
-      ${[12,16,18,20,24,32,36,48,64].map(n=>`<option value="${n}"${n===24?' selected':''}>${n}-way</option>`).join('')}
-    </select>
+    <label class="field-label">Board name</label><input class="field-input" id="nb-name" placeholder="e.g. Distribution Board 2">
+    <label class="field-label">Location</label><input class="field-input" id="nb-loc" placeholder="e.g. Level 1, Workshop">
+    <label class="field-label">Number of poles</label>
+    <select class="field-input" id="nb-ways">${[12,16,18,20,24,32,36,40,48,64].map(n=>`<option value="${n}"${n===24?' selected':''}>${n}-pole</option>`).join('')}</select>
+    <label class="field-label" style="margin-bottom:6px">Supply type</label>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <div class="supply-opt sel" id="sup-three" onclick="selSupply('three_phase')">Three phase</div>
+      <div class="supply-opt" id="sup-single" onclick="selSupply('single_phase')">Single phase</div>
+    </div>
+    <div class="err-msg" id="nb-err"></div>
     <button class="primary-btn" id="nb-save" onclick="doAddBoard()">Add board</button>
     <button class="cancel-btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
   </div>`;
   document.getElementById('app').appendChild(o);
 }
 
+window._supply='three_phase';
+function selSupply(v){
+  window._supply=v;
+  ['three','single'].forEach(id=>{
+    const el=document.getElementById('sup-'+id);
+    if(el)el.classList.toggle('sel',(id==='three'&&v==='three_phase')||(id==='single'&&v==='single_phase'));
+  });
+}
+
 async function doAddBoard(){
   const name=(document.getElementById('nb-name')?.value||'').trim();
-  if(!name)return;
+  if(!name){const err=document.getElementById('nb-err');if(err){err.style.display='block';err.textContent='Please enter a board name.';}return;}
   const btn=document.getElementById('nb-save');if(btn)btn.disabled=true;
   try{
     const res=await sb('boards',{method:'POST',body:JSON.stringify({
       name,
       location:document.getElementById('nb-loc')?.value||null,
       ways:parseInt(document.getElementById('nb-ways')?.value)||24,
+      supply_type:window._supply||'three_phase',
       site_id:S.sites[0]?.id
     })});
     const nb=Array.isArray(res)?res[0]:res;
     S.boards=[...S.boards,nb];
     document.querySelector('.modal-overlay')?.remove();
     draw();showToast('✓ Board added');
-  }catch(e){
-    if(btn)btn.disabled=false;
-    alert('Failed to add board: '+e.message);
-  }
+  }catch(e){if(btn)btn.disabled=false;alert('Failed: '+e.message);}
 }
 
 function openAddUser(){
@@ -693,10 +652,8 @@ function openAddUser(){
   o.onclick=e=>{if(e.target===o)o.remove();};
   o.innerHTML=`<div class="modal-box">
     <div class="modal-title">Add user</div>
-    <label class="field-label">Name</label>
-    <input class="field-input" id="nu-name" placeholder="e.g. Declan D">
-    <label class="field-label">4-digit PIN</label>
-    <input class="pin-input" id="nu-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+    <label class="field-label">Name</label><input class="field-input" id="nu-name" placeholder="e.g. Declan D">
+    <label class="field-label">4-digit PIN</label><input class="pin-input" id="nu-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
     <div class="err-msg" id="nu-err"></div>
     <button class="primary-btn" id="nu-save" onclick="doAddUser()">Add user</button>
     <button class="cancel-btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
@@ -707,27 +664,15 @@ function openAddUser(){
 async function doAddUser(){
   const name=(document.getElementById('nu-name')?.value||'').trim();
   const pin=(document.getElementById('nu-pin')?.value||'').trim();
-  if(!name||pin.length!==4){
-    const err=document.getElementById('nu-err');
-    if(err){err.style.display='block';err.textContent='Enter a name and exactly 4 digits.';}
-    return;
-  }
+  if(!name||pin.length!==4){const err=document.getElementById('nu-err');if(err){err.style.display='block';err.textContent='Enter a name and exactly 4 digits.';}return;}
   const btn=document.getElementById('nu-save');if(btn)btn.disabled=true;
   try{
-    const res=await sb('users',{method:'POST',body:JSON.stringify({
-      name,pin_hash:pin,role:'editor',site_id:S.sites[0]?.id
-    })});
+    const res=await sb('users',{method:'POST',body:JSON.stringify({name,pin_hash:pin,role:'editor',site_id:S.sites[0]?.id})});
     const nu=Array.isArray(res)?res[0]:res;
-    S.users=[...S.users,nu];
-    document.querySelector('.modal-overlay')?.remove();
-    draw();showToast('✓ User added');
-  }catch(e){
-    if(btn)btn.disabled=false;
-    alert('Failed to add user: '+e.message);
-  }
+    S.users=[...S.users,nu];document.querySelector('.modal-overlay')?.remove();draw();showToast('✓ User added');
+  }catch(e){if(btn)btn.disabled=false;alert('Failed: '+e.message);}
 }
 
-// ── Start ─────────────────────────────────────────────────────────────────────
 init();
 </script>
 </body>
