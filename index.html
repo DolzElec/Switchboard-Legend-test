@@ -95,7 +95,7 @@ async function loadBoard(board){
   try{
     const [circuits,tests]=await Promise.all([
       sb(`circuits?select=*&board_id=eq.${board.id}&order=number.asc`),
-      sb(`rcd_tests?select=*&order=tested_at.desc`)
+      sb(`rcd_tests?select=*&order=test_date.desc`)
     ]);
     set({circuits:circuits||[],tests:tests||[],view:'board',tab:'circuits'});
   }catch(e){set({view:'error',error:'Failed to load circuits: '+e.message});}
@@ -103,9 +103,9 @@ async function loadBoard(board){
 
 function statusColor(c){
   if(!c.has_rcd)return null;
-  const last=S.tests.filter(t=>t.circuit_id===c.id).sort((a,b)=>new Date(b.tested_at)-new Date(a.tested_at))[0];
+  const last=S.tests.filter(t=>t.circuit_id===c.id).sort((a,b)=>new Date(b.test_date)-new Date(a.test_date))[0];
   if(!last)return'red';
-  const next=new Date(last.tested_at);
+  const next=new Date(last.test_date);
   next.setMonth(next.getMonth()+(c.test_interval_months||6));
   const diff=(next-new Date())/86400000;
   return diff<0?'red':diff<30?'amber':'green';
@@ -207,11 +207,11 @@ function selCircuit(id){const c=S.circuits.find(x=>x.id===id);set({selectedCircu
 function drawCircuit(app){
   const c=S.selectedCircuit;
   if(!c){set({view:'board'});return;}
-  const myTests=S.tests.filter(t=>t.circuit_id===c.id).sort((a,b)=>new Date(b.tested_at)-new Date(a.tested_at));
+  const myTests=S.tests.filter(t=>t.circuit_id===c.id).sort((a,b)=>new Date(b.test_date)-new Date(a.test_date));
   const last=myTests[0];
   let nextDue=null,nextColor='#888';
   if(last){
-    nextDue=new Date(last.tested_at);
+    nextDue=new Date(last.test_date);
     nextDue.setMonth(nextDue.getMonth()+(c.test_interval_months||6));
     const diff=(nextDue-new Date())/86400000;
     nextColor=diff<0?'#A32D2D':diff<30?'#854F0B':'#3B6D11';
@@ -235,12 +235,12 @@ function drawCircuit(app){
     if(!c.has_rcd){
       h+=`<div class="card" style="text-align:center;padding:28px"><p style="font-size:13px;color:#888;margin-bottom:14px">No RCD protection assigned to this circuit</p><button class="add-btn" style="margin:0 auto;justify-content:center" onclick="openModal('edit')">Enable RCD tracking</button></div>`;
     }else{
-      const tf=[['Test interval',(c.test_interval_months||6)+' months',''],['Last test',last?new Date(last.tested_at).toLocaleDateString('en-AU'):'Never tested',''],['Last result',last?last.result.toUpperCase():'—',last?'color:'+(last.result==='pass'?'#3B6D11':'#A32D2D'):''],['Next due',nextDue?nextDue.toLocaleDateString('en-AU'):'—','color:'+nextColor]];
+      const tf=[['Test interval',(c.test_interval_months||6)+' months',''],['Last test',last?new Date(last.test_date).toLocaleDateString('en-AU'):'Never tested',''],['Last result',last?last.result.toUpperCase():'—',last?'color:'+(last.result==='pass'?'#3B6D11':'#A32D2D'):''],['Next due',nextDue?nextDue.toLocaleDateString('en-AU'):'—','color:'+nextColor]];
       h+=`<div class="card">${tf.map(([l,v,st],i)=>`<div class="info-row"${i===tf.length-1?' style="border-bottom:none"':''}><span class="info-label">${l}</span><span class="info-val"${st?' style="'+st+'"':''}>${v}</span></div>`).join('')}</div>`;
       h+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div class="section-label" style="margin:0">Test history</div><button class="add-btn" onclick="openModal('rcd')">+ Log test</button></div>`;
       if(!myTests.length)h+=`<div class="card" style="text-align:center;color:#aaa;font-size:13px;padding:24px">No tests logged yet</div>`;
       else h+=`<div class="card">${myTests.map((t,i)=>`<div class="test-row"${i===myTests.length-1?' style="border-bottom:none"':''}>
-        <span style="color:#888;width:78px;flex-shrink:0">${new Date(t.tested_at).toLocaleDateString('en-AU')}</span>
+        <span style="color:#888;width:78px;flex-shrink:0">${new Date(t.test_date).toLocaleDateString('en-AU')}</span>
         <span style="font-weight:600;width:48px;flex-shrink:0">${t.trip_time_ms?t.trip_time_ms+'ms':'—'}</span>
         <span style="flex:1;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.tested_by||'—')}</span>
         <span style="font-weight:700;font-size:10px;color:${t.result==='pass'?'#3B6D11':'#A32D2D'};flex-shrink:0">${(t.result||'').toUpperCase()}</span>
@@ -362,7 +362,7 @@ async function saveEdit(){
 async function saveRCD(){
   const user=verifyPin('rcd-pin','rcd-err');if(!user)return;
   const btn=document.getElementById('rcd-save');if(btn)btn.disabled=true;
-  const data={circuit_id:S.selectedCircuit.id,tested_at:document.getElementById('rcd-date')?.value,trip_time_ms:parseFloat(document.getElementById('rcd-ms')?.value)||null,result:document.getElementById('rcd-result')?.value,tested_by:user.name,notes:document.getElementById('rcd-notes')?.value||null};
+  const data={circuit_id:S.selectedCircuit.id,test_date:document.getElementById('rcd-date')?.value,trip_time_ms:parseFloat(document.getElementById('rcd-ms')?.value)||null,result:document.getElementById('rcd-result')?.value,tested_by:user.name,notes:document.getElementById('rcd-notes')?.value||null};
   try{
     const res=await sb('rcd_tests',{method:'POST',body:JSON.stringify(data)});
     const nt=Array.isArray(res)?res[0]:res;
