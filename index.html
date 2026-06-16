@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Switchboard Legend — DolzElec</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Barlow Condensed','Barlow',system-ui,sans-serif;background:#f0f0f0;min-height:100vh;display:flex;justify-content:center}
+#app{width:100%;max-width:440px;min-height:100vh;display:flex;flex-direction:column;background:#f5f5f5;position:relative}
+.topbar{background:#0d1b2e;padding:14px 16px 10px;flex-shrink:0}
+.topbar-label{font-size:10px;font-weight:500;color:rgba(255,255,255,0.55);letter-spacing:1px;text-transform:uppercase}
+.topbar-title{font-size:20px;font-weight:700;color:#fff;margin-top:2px;letter-spacing:0.3px}
+.topbar-sub{font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px}
+.back-btn{display:flex;align-items:center;gap:5px;font-size:13px;color:#f0a500;background:none;border:none;font-family:inherit;font-weight:600;padding:10px 16px 4px;cursor:pointer}
+.nav-tabs{display:flex;border-bottom:0.5px solid rgba(255,255,255,0.15);background:#0d1b2e}
+.nav-tab{flex:1;padding:9px 4px;font-size:11px;font-weight:600;text-align:center;cursor:pointer;border-bottom:2px solid transparent;color:rgba(255,255,255,0.45);letter-spacing:0.3px;transition:all 0.12s}
+.nav-tab.active{color:#f0a500;border-bottom-color:#f0a500}
+.scroll{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch}
+.section-label{font-size:10px;font-weight:600;color:#999;letter-spacing:0.8px;text-transform:uppercase;margin:10px 0 6px}
+.card{background:#fff;border:0.5px solid #e8e8e8;border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.circuit-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:0.5px solid #e8e8e8;border-radius:10px;margin-bottom:6px;cursor:pointer;transition:background 0.1s;-webkit-user-select:none;user-select:none}
+.circuit-row:active{background:#f5f5f5}
+.circuit-num{min-width:36px;height:36px;border-radius:7px;background:#0d1b2e;color:#f0a500;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;text-align:center;line-height:1.2;padding:2px}
+.info-row{display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;border-bottom:0.5px solid #f0f0f0;gap:8px}
+.info-row:last-child{border-bottom:none}
+.info-label{font-size:11px;color:#888;flex-shrink:0}
+.info-val{font-size:12px;font-weight:600;color:#111;text-align:right}
+.chip{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;flex-shrink:0;white-space:nowrap}
+.chip-green{background:#EAF3DE;color:#3B6D11}
+.chip-amber{background:#FAEEDA;color:#854F0B}
+.chip-red{background:#FCEBEB;color:#A32D2D}
+.add-btn{background:#0d1b2e;color:#f0a500;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:inherit}
+.add-btn:active{opacity:0.8}
+.add-btn:disabled{opacity:0.45}
+.ghost-btn{background:transparent;color:#888;border:0.5px solid #ddd;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit}
+.test-row{display:flex;gap:6px;align-items:center;padding:6px 0;border-bottom:0.5px solid #f0f0f0;font-size:11px}
+.test-row:last-child{border-bottom:none}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;justify-content:center;z-index:200;padding:0}
+.modal-box{background:#fff;border-radius:18px 18px 0 0;padding:20px 18px 32px;width:100%;max-width:440px;max-height:92vh;overflow-y:auto}
+.modal-title{font-size:15px;font-weight:700;margin-bottom:14px;color:#111}
+.field-label{font-size:10px;font-weight:600;color:#888;letter-spacing:0.5px;text-transform:uppercase;display:block;margin-bottom:4px;margin-top:2px}
+.field-input{width:100%;border:0.5px solid #ddd;border-radius:8px;padding:9px 10px;font-size:14px;font-family:inherit;margin-bottom:10px;background:#fff;color:#111;-webkit-appearance:none}
+.field-input:focus{outline:none;border-color:#378ADD;box-shadow:0 0 0 3px rgba(55,138,221,0.1)}
+.field-textarea{width:100%;border:0.5px solid #ddd;border-radius:8px;padding:9px 10px;font-size:14px;font-family:inherit;margin-bottom:10px;min-height:72px;resize:vertical;background:#fff;color:#111}
+.field-textarea:focus{outline:none;border-color:#378ADD}
+.primary-btn{width:100%;background:#0d1b2e;color:#f0a500;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:0.3px}
+.primary-btn:active{opacity:0.85}
+.primary-btn:disabled{opacity:0.45}
+.cancel-btn{width:100%;background:transparent;border:0.5px solid #ddd;border-radius:10px;padding:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;margin-top:8px;color:#555}
+.bottombar{background:#0d1b2e;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.center-msg{display:flex;align-items:center;justify-content:center;flex:1;padding:60px 20px;text-align:center;color:#aaa;font-size:14px;flex-direction:column;gap:12px}
+.info-note{padding:10px 12px;background:#FAEEDA;border-radius:8px;font-size:11px;color:#854F0B;margin-bottom:12px;line-height:1.5}
+.cat-chip{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;border:1.5px solid #ddd;background:#f5f5f5;color:#666;display:inline-block;margin:3px}
+.cat-chip.sel{background:#E6F1FB;color:#185FA5;border-color:#378ADD}
+.pri-opt{flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:500;text-align:center;cursor:pointer;border:1.5px solid #ddd;background:#f5f5f5;color:#666}
+.pri-opt.sel{background:#E6F1FB;color:#185FA5;border-color:#378ADD}
+.pin-input{width:100%;border:0.5px solid #ddd;border-radius:8px;padding:10px;font-size:24px;letter-spacing:8px;text-align:center;font-family:inherit;margin-bottom:10px;background:#fff;color:#111}
+.pin-input:focus{outline:none;border-color:#378ADD}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#0d1b2e;color:#f0a500;padding:10px 20px;border-radius:20px;font-size:12px;font-weight:600;z-index:999;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,0.2)}
+.de-logo{font-size:11px;font-weight:700;color:#f0a500;letter-spacing:1px}
+@media(min-width:441px){#app{border-left:0.5px solid #ddd;border-right:0.5px solid #ddd;box-shadow:0 0 40px rgba(0,0,0,0.08)}}
+</style>
+</head>
+<body>
+<div id="app"><div class="center-msg"><div style="font-size:40px">⚡</div><div>Connecting to switchboard…</div></div></div>
+
+<script>
+const SB_URL='https://ymbzmszlccgfzdqgxsus.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltYnptc3psY2NnZnpkcWd4c3VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1ODM1NTgsImV4cCI6MjA5NzE1OTU1OH0.Nnk9WN55DTMfwTt0tVoqJ3Z8wb5dB9aRivz9qKrq4Vk';
+
+const sb=async(path,opts={})=>{
+  const r=await fetch(`${SB_URL}/rest/v1/${path}`,{
+    headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'return=representation',...(opts.headers||{})},
+    ...opts
+  });
+  const t=await r.text();
+  if(!r.ok)throw new Error(t);
+  return t?JSON.parse(t):null;
+};
+
+let S={sites:[],boards:[],users:[],circuits:[],tests:[],currentUser:null,view:'loading',selectedBoard:null,selectedSite:null,selectedCircuit:null,tab:'circuits',circuitTab:'info',adminTab:'boards',modal:null,error:null};
+
+const set=patch=>{S={...S,...patch};draw();};
+
+async function init(){
+  try{
+    const [sites,boards,users]=await Promise.all([sb('sites?select=*'),sb('boards?select=*'),sb('users?select=*')]);
+    set({sites:sites||[],boards:boards||[],users:users||[],view:'sites',error:null});
+  }catch(e){set({view:'error',error:'Could not connect. Check your internet connection and try again.'});}
+}
+
+async function loadBoard(board){
+  set({view:'loading'});
+  try{
+    const [circuits,tests]=await Promise.all([
+      sb(`circuits?board_id=eq.${board.id}&order=number.asc`),
+      sb(`rcd_tests?order=tested_at.desc`)
+    ]);
+    set({circuits:circuits||[],tests:tests||[],view:'board',tab:'circuits'});
+  }catch(e){set({view:'error',error:'Failed to load circuits.'});}
+}
+
+function statusColor(c){
+  if(!c.has_rcd)return null;
+  const last=S.tests.filter(t=>t.circuit_id===c.id).sort((a,b)=>new Date(b.tested_at)-new Date(a.tested_at))[0];
+  if(!last)return'red';
+  const next=new Date(last.tested_at);
+  next.setMonth(next.getMonth()+(c.test_interval_months||6));
+  const diff=(next-new Date())/86400000;
+  return diff<0?'red':diff<30?'amber':'green';
+}
+
+function chipHtml(status){
+  if(!status)return'';
+  const m={green:['#EAF3DE','#3B6D11','RCD OK'],amber:['#FAEEDA','#854F0B','Due soon'],red:['#FCEBEB','#A32D2D','Overdue']};
+  const[bg,c,l]=m[status];
+  return`<span style="background:${bg};color:${c};font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;flex-shrink:0">${l}</span>`;
+}
+
+function groupCircuits(){
+  const cs=S.circuits;
+  const groups=[
+    {label:'Lighting circuits',items:cs.filter(c=>{const n=String(c.number||'');const l=(c.label||'').toLowerCase();return(n.startsWith('L')&&!n.startsWith('LS'))||l.includes('light')||l.includes('batten')||l.includes('lamp');})},
+    {label:'Power circuits',items:cs.filter(c=>{const n=String(c.number||'');const l=(c.label||'').toLowerCase();return n.startsWith('P')||l.includes('gpo')||l.includes('power')||l.includes('applian');})},
+    {label:'HVAC circuits',items:cs.filter(c=>{const n=String(c.number||'');const l=(c.label||'').toLowerCase();return n.startsWith('H')||l.includes('split')||l.includes('hvac')||l.includes('exhaust');})},
+    {label:'Emergency circuits',items:cs.filter(c=>{const n=String(c.number||'');const l=(c.label||'').toLowerCase();return n.startsWith('EM')||l.includes('emergency');})},
+  ];
+  const allGrouped=new Set(groups.flatMap(g=>g.items.map(c=>c.id)));
+  const other=cs.filter(c=>!allGrouped.has(c.id));
+  if(other.length)groups.push({label:'Other circuits',items:other});
+  return groups.filter(g=>g.items.length);
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function draw(){
+  const app=document.getElementById('app');
+  if(!app)return;
+  const v=S.view;
+  if(v==='loading'){app.innerHTML=`<div class="center-msg"><div style="font-size:40px">⚡</div><div>Loading…</div></div>`;return;}
+  if(v==='error'){app.innerHTML=`<div class="center-msg"><div style="font-size:36px">⚠️</div><div style="color:#A32D2D">${esc(S.error)}</div><button class="add-btn" style="margin-top:8px" onclick="init()">Retry</button></div>`;return;}
+  if(v==='sites')drawSites(app);
+  else if(v==='board')drawBoard(app);
+  else if(v==='circuit')drawCircuit(app);
+  else if(v==='admin')drawAdmin(app);
+  if(S.modal)drawModal();
+}
+
+function drawSites(app){
+  let h=`<div class="topbar"><div class="topbar-label">DolzElec</div><div class="topbar-title">Switchboard Legend</div><div class="topbar-sub">Select a switchboard to view</div></div><div class="scroll">`;
+  S.sites.forEach(site=>{
+    const siteBoards=S.boards.filter(b=>b.site_id===site.id);
+    h+=`<div class="section-label">${esc(site.name)}</div>`;
+    if(site.address)h+=`<div style="font-size:11px;color:#aaa;margin-bottom:6px">${esc(site.address)}</div>`;
+    if(!siteBoards.length){h+=`<div class="card" style="color:#aaa;font-size:13px;text-align:center;padding:20px">No boards set up yet</div>`;}
+    else siteBoards.forEach(b=>{
+      h+=`<div class="circuit-row" onclick="selBoard('${b.id}','${site.id}')">
+        <div class="circuit-num" style="font-size:9px;line-height:1.1;padding:3px">DB</div>
+        <div style="flex:1"><div style="font-size:14px;font-weight:600">${esc(b.name)}</div>
+        <div style="font-size:11px;color:#888;margin-top:1px">${esc(b.location||'')}${b.ways?' · '+b.ways+'-way':''}</div></div>
+        <span style="font-size:22px;color:#ddd;font-weight:300">›</span></div>`;
+    });
+  });
+  if(!S.sites.length)h+=`<div class="card" style="color:#aaa;font-size:13px;text-align:center;padding:32px">No sites found.<br><span style="font-size:11px;margin-top:4px;display:block">Set one up in the admin panel.</span></div>`;
+  h+=`<button class="ghost-btn" style="width:100%;margin-top:16px" onclick="set({view:'admin',adminTab:'boards'})">⚙ Admin panel</button></div>`;
+  app.innerHTML=h;
+}
+
+function selBoard(bId,sId){
+  const board=S.boards.find(b=>b.id===bId);
+  const site=S.sites.find(s=>s.id===sId);
+  S.selectedBoard=board;S.selectedSite=site;
+  loadBoard(board);
+}
+
+function drawBoard(app){
+  const b=S.selectedBoard,site=S.selectedSite;
+  let h=`<div class="topbar"><div class="topbar-label">DolzElec — Switchboard</div><div class="topbar-title">${esc(b.name)}</div><div class="topbar-sub">${esc(b.location||'')}${site?' · '+esc(site.name):''}</div></div>
+  <div class="nav-tabs"><div class="nav-tab ${S.tab==='circuits'?'active':''}" onclick="set({tab:'circuits'})">Circuits</div><div class="nav-tab ${S.tab==='plan'?'active':''}" onclick="set({tab:'plan'})">Floor plan</div></div>
+  <div class="scroll">`;
+  if(S.tab==='circuits'){
+    if(!S.circuits.length){h+=`<div class="card" style="text-align:center;padding:40px;color:#aaa"><p style="font-size:15px;margin-bottom:8px">No circuits yet</p><p style="font-size:12px">Add circuits via the admin panel</p></div>`;}
+    else{
+      groupCircuits().forEach(g=>{
+        h+=`<div class="section-label">${g.label}</div>`;
+        g.items.forEach(c=>{
+          const num=esc(c.number||'');const fs=num.length>2?9:num.length>1?11:13;
+          h+=`<div class="circuit-row" onclick="selCircuit('${c.id}')">
+            <div class="circuit-num" style="font-size:${fs}px">${num}</div>
+            <div style="flex:1"><div style="font-size:14px;font-weight:500">${esc(c.label||'Unlabelled circuit')}</div>
+            <div style="font-size:11px;color:#888;margin-top:1px">${esc(c.device_type||'—')}${c.phase?' · '+esc(c.phase):''}</div></div>
+            ${chipHtml(statusColor(c))}</div>`;
+        });
+      });
+    }
+  }else{
+    h+=`<div class="card" style="text-align:center;padding:40px 20px;color:#aaa"><div style="font-size:36px;margin-bottom:10px">🗺️</div><p style="font-size:14px;font-weight:500;margin-bottom:6px">Floor plan editor</p><p style="font-size:12px;line-height:1.6">Upload your site plan and place fitting icons.<br>Coming in the next update.</p></div>`;
+  }
+  h+=`</div><div class="bottombar"><button class="back-btn" style="padding:0;font-size:13px" onclick="set({view:'sites',selectedBoard:null,circuits:[],tests:[]})">← All boards</button><span style="font-size:10px;color:rgba(255,255,255,0.4)">${S.currentUser?'Logged in: '+esc(S.currentUser.name):'Tap Edit to log in'}</span></div>`;
+  app.innerHTML=h;
+  if(S.modal)drawModal();
+}
+
+function selCircuit(id){const c=S.circuits.find(x=>x.id===id);set({selectedCircuit:c,view:'circuit',circuitTab:'info',modal:null});}
+
+function drawCircuit(app){
+  const c=S.selectedCircuit;
+  if(!c){set({view:'board'});return;}
+  const myTests=S.tests.filter(t=>t.circuit_id===c.id).sort((a,b)=>new Date(b.tested_at)-new Date(a.tested_at));
+  const last=myTests[0];
+  let nextDue=null,nextColor='#888';
+  if(last){
+    nextDue=new Date(last.tested_at);
+    nextDue.setMonth(nextDue.getMonth()+(c.test_interval_months||6));
+    const diff=(nextDue-new Date())/86400000;
+    nextColor=diff<0?'#A32D2D':diff<30?'#854F0B':'#3B6D11';
+  }
+  const num=esc(c.number||'');const fs=num.length>2?9:num.length>1?11:13;
+  let h=`<div style="background:#0d1b2e;flex-shrink:0">
+    <button class="back-btn" onclick="set({view:'board',selectedCircuit:null,modal:null})">← All circuits</button>
+    <div style="padding:2px 16px 10px"><div style="font-size:18px;font-weight:700;color:#fff">${num} — ${esc(c.label||'Unlabelled circuit')}</div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px">${esc(c.device_type||'—')}${c.phase?' · '+esc(c.phase):''}</div></div>
+    <div class="nav-tabs"><div class="nav-tab ${S.circuitTab==='info'?'active':''}" onclick="set({circuitTab:'info'})">Info</div><div class="nav-tab ${S.circuitTab==='rcd'?'active':''}" onclick="set({circuitTab:'rcd'})">RCD Tests</div></div>
+  </div><div class="scroll">`;
+
+  if(S.circuitTab==='info'){
+    const fields=[['Circuit number',num],['Protection device',esc(c.device_type||'—')],['Phase',esc(c.phase||'—')],['Cable size',esc(c.cable_size||'—')],['Install date',c.install_date||'—'],['Last edited by',c.last_edited_by?esc(c.last_edited_by)+(c.last_edited_at?' · '+new Date(c.last_edited_at).toLocaleDateString('en-AU'):''):'—']];
+    h+=`<div class="card">${fields.map(([l,v],i)=>`<div class="info-row"${i===fields.length-1?' style="border-bottom:none"':''}><span class="info-label">${l}</span><span class="info-val">${v}</span></div>`).join('')}</div>`;
+    if(c.notes)h+=`<div class="card"><div class="section-label" style="margin-top:0">Notes</div><p style="font-size:13px;color:#333;line-height:1.6;margin-top:5px">${esc(c.notes)}</p></div>`;
+    h+=`<div style="display:flex;gap:8px;margin-top:4px">
+      <button class="add-btn" style="flex:1;justify-content:center" onclick="openModal('edit')">✏ Edit circuit</button>
+      <button class="ghost-btn" onclick="openModal('request')">+ Request icon</button></div>`;
+  }else{
+    if(!c.has_rcd){
+      h+=`<div class="card" style="text-align:center;padding:28px"><p style="font-size:13px;color:#888;margin-bottom:14px">No RCD protection assigned to this circuit</p><button class="add-btn" style="margin:0 auto;justify-content:center" onclick="openModal('edit')">Enable RCD tracking</button></div>`;
+    }else{
+      const tf=[['Test interval',(c.test_interval_months||6)+' months',''],['Last test',last?new Date(last.tested_at).toLocaleDateString('en-AU'):'Never tested',''],['Last result',last?last.result.toUpperCase():'—',last?'color:'+(last.result==='pass'?'#3B6D11':'#A32D2D'):''],['Next due',nextDue?nextDue.toLocaleDateString('en-AU'):'—','color:'+nextColor]];
+      h+=`<div class="card">${tf.map(([l,v,st],i)=>`<div class="info-row"${i===tf.length-1?' style="border-bottom:none"':''}><span class="info-label">${l}</span><span class="info-val"${st?' style="'+st+'"':''}>${v}</span></div>`).join('')}</div>`;
+      h+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div class="section-label" style="margin:0">Test history</div><button class="add-btn" onclick="openModal('rcd')">+ Log test</button></div>`;
+      if(!myTests.length)h+=`<div class="card" style="text-align:center;color:#aaa;font-size:13px;padding:24px">No tests logged yet</div>`;
+      else h+=`<div class="card">${myTests.map((t,i)=>`<div class="test-row"${i===myTests.length-1?' style="border-bottom:none"':''}>
+        <span style="color:#888;width:78px;flex-shrink:0">${new Date(t.tested_at).toLocaleDateString('en-AU')}</span>
+        <span style="font-weight:600;width:48px;flex-shrink:0">${t.trip_time_ms?t.trip_time_ms+'ms':'—'}</span>
+        <span style="flex:1;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.tested_by||'—')}</span>
+        <span style="font-weight:700;font-size:10px;color:${t.result==='pass'?'#3B6D11':'#A32D2D'};flex-shrink:0">${(t.result||'').toUpperCase()}</span>
+      </div>`).join('')}</div>`;
+    }
+  }
+  h+=`</div>`;
+  app.innerHTML=h;
+  if(S.modal)drawModal();
+}
+
+function openModal(type){S.modal=type;drawModal();}
+function closeModal(){S.modal=null;document.querySelector('.modal-overlay')?.remove();}
+
+function drawModal(){
+  document.querySelector('.modal-overlay')?.remove();
+  const type=S.modal;if(!type)return;
+  const c=S.selectedCircuit;
+  let h='';
+
+  if(type==='pin'){
+    h=`<div class="modal-overlay" onclick="closeModal()"><div class="modal-box" onclick="event.stopPropagation()">
+      <div class="modal-title">Enter your PIN</div>
+      <p style="font-size:12px;color:#888;margin-bottom:16px">Your edits will be stamped with your name</p>
+      <input class="pin-input" id="pin-i" type="password" inputmode="numeric" maxlength="4" placeholder="••••" onkeydown="if(event.key==='Enter')tryPin()">
+      <div id="pin-err" style="font-size:12px;color:#A32D2D;margin-bottom:10px;display:none;text-align:center"></div>
+      <button class="primary-btn" onclick="tryPin()">Unlock</button>
+      <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+    </div></div>`;
+  }
+  else if(type==='edit'&&c){
+    h=`<div class="modal-overlay" onclick="closeModal()"><div class="modal-box" onclick="event.stopPropagation()">
+      <div class="modal-title">Edit — Circuit ${esc(c.number)}</div>
+      ${S.currentUser?`<div style="font-size:12px;color:#555;margin-bottom:14px">Editing as: <strong>${esc(S.currentUser.name)}</strong></div>`:`<div class="info-note">Enter your PIN to save changes</div>`}
+      <label class="field-label">Label</label><input class="field-input" id="e-label" value="${esc(c.label||'')}" placeholder="e.g. Kitchen Appliances">
+      <label class="field-label">Protection device</label><input class="field-input" id="e-device" value="${esc(c.device_type||'')}" placeholder="e.g. 20A MCB + RCD">
+      <label class="field-label">Phase</label><input class="field-input" id="e-phase" value="${esc(c.phase||'')}" placeholder="e.g. Phase A">
+      <label class="field-label">Cable size</label><input class="field-input" id="e-cable" value="${esc(c.cable_size||'')}" placeholder="e.g. 2.5mm² TPS">
+      <label class="field-label">Notes</label><textarea class="field-textarea" id="e-notes" placeholder="Any notes about this circuit…">${esc(c.notes||'')}</textarea>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><input type="checkbox" id="e-rcd" ${c.has_rcd?'checked':''}><label for="e-rcd" style="font-size:13px">Has RCD protection</label></div>
+      ${!S.currentUser?`<label class="field-label">Your PIN</label><input class="pin-input" id="e-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••"><div id="e-err" style="font-size:12px;color:#A32D2D;margin-bottom:8px;display:none;text-align:center"></div>`:''}
+      <button class="primary-btn" id="e-save" onclick="saveEdit()">Save changes</button>
+      <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+    </div></div>`;
+  }
+  else if(type==='rcd'&&c){
+    const today=new Date().toISOString().split('T')[0];
+    h=`<div class="modal-overlay" onclick="closeModal()"><div class="modal-box" onclick="event.stopPropagation()">
+      <div class="modal-title">Log RCD test</div>
+      <p style="font-size:12px;color:#888;margin-bottom:14px">${esc(c.label||'Circuit '+c.number)}</p>
+      ${S.currentUser?`<div style="font-size:12px;color:#555;margin-bottom:14px">Logging as: <strong>${esc(S.currentUser.name)}</strong></div>`:`<div class="info-note">Enter your PIN to log this test</div>`}
+      <label class="field-label">Date</label><input class="field-input" id="rcd-date" type="date" value="${today}">
+      <label class="field-label">Trip time (ms)</label><input class="field-input" id="rcd-ms" type="number" inputmode="decimal" placeholder="e.g. 18">
+      <label class="field-label">Result</label>
+      <select class="field-input" id="rcd-result"><option value="pass">Pass (&lt;300ms)</option><option value="fail">Fail</option></select>
+      <label class="field-label">Notes (optional)</label><textarea class="field-textarea" id="rcd-notes" placeholder="Any observations…"></textarea>
+      ${!S.currentUser?`<label class="field-label">Your PIN</label><input class="pin-input" id="rcd-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••"><div id="rcd-err" style="font-size:12px;color:#A32D2D;margin-bottom:8px;display:none;text-align:center"></div>`:''}
+      <button class="primary-btn" id="rcd-save" onclick="saveRCD()">Save test</button>
+      <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+    </div></div>`;
+  }
+  else if(type==='request'){
+    h=`<div class="modal-overlay" onclick="closeModal()"><div class="modal-box" onclick="event.stopPropagation()">
+      <div class="modal-title">Request a new icon</div>
+      <p style="font-size:12px;color:#888;margin-bottom:14px;line-height:1.5">Come across a fitting not in the library? Fill this in and Declan will add it.</p>
+      <label class="field-label">Fitting / device name *</label><input class="field-input" id="req-name" placeholder="e.g. High bay fitting, weatherproof GPO…">
+      <label class="field-label">Category</label>
+      <div style="margin-bottom:12px">${['Lighting','Emergency lighting','Power / GPO','Switching & control','HVAC','Other'].map(cat=>`<span class="cat-chip" onclick="toggleCat(this,'${cat}')">${cat}</span>`).join('')}</div>
+      <label class="field-label">Description</label><textarea class="field-textarea" id="req-desc" placeholder="Mounting type, size, brand if relevant…"></textarea>
+      <label class="field-label">Where it appears on this job</label><input class="field-input" id="req-loc" placeholder="e.g. DB1 — Circuit L3, north wall">
+      <label class="field-label" style="margin-bottom:6px">Priority</label>
+      <div style="display:flex;gap:8px;margin-bottom:14px"><div class="pri-opt sel" id="pri-normal" onclick="selPri('normal')">Normal — when you can</div><div class="pri-opt" id="pri-urgent" onclick="selPri('urgent')">Urgent — need it now</div></div>
+      ${S.currentUser?`<div style="font-size:12px;color:#555;margin-bottom:12px">Submitted as: <strong>${esc(S.currentUser.name)}</strong></div>`:`<label class="field-label">Your PIN</label><input class="pin-input" id="req-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••"><div id="req-err" style="font-size:12px;color:#A32D2D;margin-bottom:8px;display:none;text-align:center"></div>`}
+      <button class="primary-btn" onclick="saveRequest()">Submit request</button>
+      <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+    </div></div>`;
+  }
+
+  if(h){const d=document.createElement('div');d.innerHTML=h;document.getElementById('app').appendChild(d.firstElementChild);}
+}
+
+window._cat='';window._pri='normal';
+function toggleCat(el,cat){document.querySelectorAll('.cat-chip').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');window._cat=cat;}
+function selPri(p){window._pri=p;['normal','urgent'].forEach(id=>{const el=document.getElementById('pri-'+id);if(el)el.classList.toggle('sel',id===p);});}
+
+function verifyPin(inputId,errId){
+  if(S.currentUser)return S.currentUser;
+  const val=document.getElementById(inputId)?.value;
+  const user=S.users.find(u=>u.pin_hash===val);
+  if(!user){const err=document.getElementById(errId);if(err){err.style.display='block';err.textContent='Incorrect PIN — try again';}}
+  return user||null;
+}
+
+function tryPin(){
+  const val=document.getElementById('pin-i')?.value;
+  const user=S.users.find(u=>u.pin_hash===val);
+  if(user){S.currentUser=user;closeModal();draw();}
+  else{const err=document.getElementById('pin-err');if(err){err.style.display='block';err.textContent='Incorrect PIN — try again';}}
+}
+
+function showToast(msg){
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);setTimeout(()=>t.remove(),3000);
+}
+
+async function saveEdit(){
+  const user=verifyPin('e-pin','e-err');if(!user)return;
+  const btn=document.getElementById('e-save');if(btn)btn.disabled=true;
+  const data={label:document.getElementById('e-label')?.value,device_type:document.getElementById('e-device')?.value,phase:document.getElementById('e-phase')?.value,cable_size:document.getElementById('e-cable')?.value,notes:document.getElementById('e-notes')?.value,has_rcd:document.getElementById('e-rcd')?.checked,last_edited_by:user.name,last_edited_at:new Date().toISOString()};
+  try{
+    const res=await sb(`circuits?id=eq.${S.selectedCircuit.id}`,{method:'PATCH',body:JSON.stringify(data)});
+    const updated=Array.isArray(res)?res[0]:res;
+    S.circuits=S.circuits.map(c=>c.id===updated.id?updated:c);
+    S.selectedCircuit=updated;S.currentUser=user;S.modal=null;
+    draw();showToast('✓ Circuit saved');
+  }catch(e){if(btn)btn.disabled=false;alert('Save failed. Please try again.');}
+}
+
+async function saveRCD(){
+  const user=verifyPin('rcd-pin','rcd-err');if(!user)return;
+  const btn=document.getElementById('rcd-save');if(btn)btn.disabled=true;
+  const data={circuit_id:S.selectedCircuit.id,tested_at:document.getElementById('rcd-date')?.value,trip_time_ms:parseFloat(document.getElementById('rcd-ms')?.value)||null,result:document.getElementById('rcd-result')?.value,tested_by:user.name,notes:document.getElementById('rcd-notes')?.value||null};
+  try{
+    const res=await sb('rcd_tests',{method:'POST',body:JSON.stringify(data)});
+    const nt=Array.isArray(res)?res[0]:res;
+    S.tests=[nt,...S.tests];S.currentUser=user;S.modal=null;
+    draw();showToast('✓ Test logged');
+  }catch(e){if(btn)btn.disabled=false;alert('Save failed. Please try again.');}
+}
+
+async function saveRequest(){
+  const user=verifyPin('req-pin','req-err');if(!user)return;
+  const name=document.getElementById('req-name')?.value;
+  if(!name){alert('Please enter the fitting name.');return;}
+  const data={fitting_name:name,category:window._cat,description:document.getElementById('req-desc')?.value||null,location_on_job:document.getElementById('req-loc')?.value||null,priority:window._pri,requested_by:user.name,site_id:S.selectedSite?.id||S.sites[0]?.id};
+  try{
+    await sb('icon_requests',{method:'POST',body:JSON.stringify(data)});
+    S.currentUser=user;S.modal=null;draw();showToast('✓ Request sent — Declan notified');
+  }catch(e){alert('Failed to submit. Please try again.');}
+}
+
+function drawAdmin(app){
+  const t=S.adminTab||'boards';
+  let h=`<div style="background:#0d1b2e;flex-shrink:0"><button class="back-btn" onclick="set({view:'sites'})">← Back</button>
+  <div style="padding:2px 16px 10px"><div style="font-size:18px;font-weight:700;color:#fff">Admin Panel</div><div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px">${esc(S.sites[0]?.name||'')}</div></div>
+  <div class="nav-tabs"><div class="nav-tab ${t==='boards'?'active':''}" onclick="set({adminTab:'boards'})">Boards</div><div class="nav-tab ${t==='users'?'active':''}" onclick="set({adminTab:'users'})">Users & PINs</div></div></div>
+  <div class="scroll">`;
+
+  if(t==='boards'){
+    if(!S.boards.length)h+=`<div class="card" style="color:#aaa;font-size:13px;text-align:center;padding:24px">No boards yet</div>`;
+    S.boards.forEach(b=>{
+      h+=`<div class="card"><div style="font-weight:600;font-size:14px">${esc(b.name)}</div><div style="font-size:11px;color:#888;margin-top:3px">${esc(b.location||'')}${b.ways?' · '+b.ways+'-way':''}</div><div style="font-size:10px;color:#bbb;margin-top:5px;word-break:break-all">QR: /board/${esc(b.qr_slug||b.id)}</div></div>`;
+    });
+    h+=`<button class="add-btn" style="width:100%;justify-content:center;margin-top:4px" onclick="openAddBoard()">+ Add switchboard</button>`;
+  }else{
+    h+=`<div class="info-note">Each person has a unique 4-digit PIN. Edits and test logs are stamped with their name.</div>`;
+    S.users.forEach(u=>{h+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;font-size:14px">${esc(u.name)}</span><span style="font-size:14px;letter-spacing:5px;color:#ccc">••••</span></div><div style="font-size:11px;color:#888;margin-top:2px">${esc(u.role||'editor')}</div></div>`;});
+    h+=`<button class="add-btn" style="width:100%;justify-content:center;margin-top:4px" onclick="openAddUser()">+ Add user</button>`;
+  }
+  h+=`</div>`;
+  app.innerHTML=h;
+}
+
+function openAddBoard(){
+  const o=document.createElement('div');o.className='modal-overlay';
+  o.innerHTML=`<div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title">Add switchboard</div>
+    <label class="field-label">Board name</label><input class="field-input" id="nb-name" placeholder="e.g. Distribution Board 1">
+    <label class="field-label">Location</label><input class="field-input" id="nb-loc" placeholder="e.g. Level 2, Main Building">
+    <label class="field-label">Number of ways</label>
+    <select class="field-input" id="nb-ways">${[12,16,18,20,24,32,36,48,64].map(n=>`<option value="${n}"${n===24?' selected':''}>${n}-way</option>`).join('')}</select>
+    <button class="primary-btn" id="nb-save" onclick="doAddBoard()">Add board</button>
+    <button class="cancel-btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+  </div>`;
+  document.getElementById('app').appendChild(o);
+}
+
+async function doAddBoard(){
+  const name=document.getElementById('nb-name')?.value;if(!name)return;
+  document.getElementById('nb-save').disabled=true;
+  try{
+    const res=await sb('boards',{method:'POST',body:JSON.stringify({name,location:document.getElementById('nb-loc')?.value,ways:parseInt(document.getElementById('nb-ways')?.value)||24,site_id:S.sites[0]?.id})});
+    const nb=Array.isArray(res)?res[0]:res;
+    S.boards=[...S.boards,nb];document.querySelector('.modal-overlay')?.remove();draw();showToast('✓ Board added');
+  }catch(e){document.getElementById('nb-save').disabled=false;alert('Failed to add board.');}
+}
+
+function openAddUser(){
+  const o=document.createElement('div');o.className='modal-overlay';
+  o.innerHTML=`<div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title">Add user</div>
+    <label class="field-label">Name</label><input class="field-input" id="nu-name" placeholder="e.g. Declan D">
+    <label class="field-label">4-digit PIN</label><input class="pin-input" id="nu-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+    <button class="primary-btn" id="nu-save" onclick="doAddUser()">Add user</button>
+    <button class="cancel-btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+  </div>`;
+  document.getElementById('app').appendChild(o);
+}
+
+async function doAddUser(){
+  const name=document.getElementById('nu-name')?.value;const pin=document.getElementById('nu-pin')?.value;
+  if(!name||pin?.length!==4)return alert('Enter a name and a 4-digit PIN.');
+  document.getElementById('nu-save').disabled=true;
+  try{
+    const res=await sb('users',{method:'POST',body:JSON.stringify({name,pin_hash:pin,role:'editor',site_id:S.sites[0]?.id})});
+    const nu=Array.isArray(res)?res[0]:res;
+    S.users=[...S.users,nu];document.querySelector('.modal-overlay')?.remove();draw();showToast('✓ User added');
+  }catch(e){document.getElementById('nu-save').disabled=false;alert('Failed to add user.');}
+}
+
+init();
+</script>
+</body>
+</html>
