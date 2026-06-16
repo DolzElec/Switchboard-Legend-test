@@ -94,11 +94,11 @@ async function loadBoard(board){
   set({view:'loading'});
   try{
     const [circuits,tests]=await Promise.all([
-      sb(`circuits?board_id=eq.${board.id}&order=number.asc`),
-      sb(`rcd_tests?order=tested_at.desc`)
+      sb(`circuits?select=*&board_id=eq.${board.id}&order=number.asc`),
+      sb(`rcd_tests?select=*&order=tested_at.desc`)
     ]);
     set({circuits:circuits||[],tests:tests||[],view:'board',tab:'circuits'});
-  }catch(e){set({view:'error',error:'Failed to load circuits.'});}
+  }catch(e){set({view:'error',error:'Failed to load circuits: '+e.message});}
 }
 
 function statusColor(c){
