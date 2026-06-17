@@ -93,6 +93,29 @@ body{font-family:'Barlow Condensed','Barlow',system-ui,sans-serif;background:#e8
 .qr-box{background:#f5f5f5;border-radius:10px;padding:12px;text-align:center;margin-top:8px;border:0.5px solid #e0e0e0}
 .qr-url{font-size:11px;color:#378ADD;word-break:break-all;margin-top:6px;font-family:monospace}
 @media(min-width:481px){#app{box-shadow:0 0 40px rgba(0,0,0,0.1)}}
+
+/* ── Floor plan ── */
+.plan-wrap{display:flex;flex-direction:column;flex:1;min-height:0;background:#dfe3e8}
+.plan-bar{display:flex;align-items:center;gap:6px;padding:8px 10px;background:#fff;border-bottom:0.5px solid #e3e3e3;overflow-x:auto;flex-shrink:0;-webkit-overflow-scrolling:touch}
+.plan-chip{padding:5px 11px;border-radius:16px;font-size:11px;font-weight:600;white-space:nowrap;cursor:pointer;border:1px solid #ddd;background:#f5f5f5;color:#555;flex-shrink:0}
+.plan-chip.sel{background:#0d1b2e;color:#f0a500;border-color:#0d1b2e}
+.plan-stage{flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:10px;-webkit-overflow-scrolling:touch}
+.plan-canvas{position:relative;background:#fff center/contain no-repeat;border:1px solid #c4c9d0;border-radius:4px;width:100%;box-shadow:0 1px 5px rgba(0,0,0,0.12)}
+.plan-icon{position:absolute;display:flex;flex-direction:column;align-items:center;cursor:pointer;user-select:none;touch-action:none;z-index:2}
+.plan-icon .disc{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.4);border:1.5px solid #fff}
+.plan-icon.sel .disc{outline:2.5px solid #378ADD;outline-offset:1.5px}
+.plan-icon .ic-circ{font-size:8px;font-weight:700;color:#0d1b2e;background:rgba(255,255,255,0.92);border-radius:6px;padding:0 4px;margin-top:1px;white-space:nowrap;line-height:1.5;box-shadow:0 1px 2px rgba(0,0,0,0.2)}
+.plan-actions{flex-shrink:0;background:#fff;border-top:0.5px solid #e3e3e3;padding:8px 10px;display:flex;align-items:center;gap:6px;min-height:52px}
+.plan-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#8a929b;padding:40px 24px;gap:12px}
+.icon-tool{flex:1;background:#f5f5f5;border:0.5px solid #ddd;border-radius:8px;padding:7px 2px;font-size:10px;font-weight:600;color:#444;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.1}
+.icon-tool:active{background:#ececec}
+.icon-tool.danger{color:#A32D2D;background:#FCEBEB;border-color:#f3cccc}
+.palette-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:2px}
+.pal-item{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 3px;border:1px solid #eee;border-radius:10px;cursor:pointer;background:#fff;text-align:center}
+.pal-item:active{background:#f3f3f3}
+.pal-disc{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;border:1.5px solid #fff;box-shadow:0 1px 2px rgba(0,0,0,0.25)}
+.pal-name{font-size:9px;color:#666;line-height:1.2;font-weight:500}
+.pal-cat{font-size:10px;font-weight:700;color:#999;letter-spacing:0.6px;text-transform:uppercase;margin:14px 0 2px}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
@@ -120,7 +143,8 @@ let S={
   view:'loading',
   selectedBoard:null,selectedSite:null,selectedCircuit:null,
   tab:'board',circuitTab:'info',adminTab:'boards',
-  modal:null,error:null
+  modal:null,error:null,
+  plan:{loaded:false,loading:false,plans:[],current:null,icons:[],editMode:false,placingType:null,selectedIconId:null}
 };
 const set=patch=>{Object.assign(S,patch);draw();};
 
@@ -159,6 +183,7 @@ async function init(){
 }
 
 async function loadBoard(board,updateState=true){
+  S.plan={loaded:false,loading:false,plans:[],current:null,icons:[],editMode:false,placingType:null,selectedIconId:null};
   if(updateState)set({view:'loading'});
   try{
     const[circuits,tests]=await Promise.all([
@@ -395,11 +420,29 @@ function drawBoard(app){
     // Generate QR after render
     setTimeout(()=>generateQR(url),50);
   }else{
-    h+=`<div class="scroll"><div class="card" style="text-align:center;padding:40px 20px;color:#aaa">
-      <div style="font-size:36px;margin-bottom:10px">🗺️</div>
-      <p style="font-size:14px;font-weight:500;margin-bottom:6px">Floor plan editor</p>
-      <p style="font-size:12px;line-height:1.6">Coming in the next update.</p>
-    </div></div>`;
+    // ── Floor plan tab ──
+    if(!S.plan.loaded){
+      if(!S.plan.loading)loadPlans();
+      h+=`<div class="plan-wrap"><div class="plan-empty"><div style="font-size:30px">🗺️</div><div>Loading floor plan…</div></div></div>`;
+    }else if(!S.plan.current){
+      h+=`<div class="plan-wrap"><div class="plan-empty">
+        <div style="font-size:34px">🗺️</div>
+        <div style="font-size:14px;font-weight:700;color:#444">No floor plan yet</div>
+        <div style="font-size:12px;max-width:250px;line-height:1.5">Upload a photo or scan of the floor plan, then drop electrical fittings onto it and link them to circuits.</div>
+        <button class="add-btn" onclick="openAddPlan()">＋ Add floor plan</button>
+      </div></div>`;
+    }else{
+      const p=S.plan.current;
+      h+=`<div class="plan-wrap">
+        <div class="plan-bar" id="plan-bar"></div>
+        <div class="plan-stage">
+          <div class="plan-canvas" id="plan-canvas" style="aspect-ratio:${p.width||800} / ${p.height||600};background-image:url('${(p.image_url||'').replace(/'/g,"%27")}')">
+            <div id="plan-icons"></div>
+          </div>
+        </div>
+        <div class="plan-actions" id="plan-actions"></div>
+      </div>`;
+    }
   }
 
   // Only show bottombar back button if not reached via QR
@@ -411,6 +454,7 @@ function drawBoard(app){
   </div>`;
 
   app.innerHTML=h;
+  if(S.tab==='plan'&&S.plan.loaded&&S.plan.current)setTimeout(initPlanTab,0);
 }
 
 function selCircuit(id){
@@ -894,6 +938,339 @@ async function doAddUser(){
     const nu=Array.isArray(res)?res[0]:res;
     S.users=[...S.users,nu];document.querySelector('.modal-overlay')?.remove();draw();showToast('✓ User added');
   }catch(e){if(btn)btn.disabled=false;alert('Failed: '+e.message);}
+}
+
+// ── Floor plan ────────────────────────────────────────────────────────────────
+const ICON_LIB=[
+  {type:'gpo_single',code:'G',label:'Single GPO',cat:'Power / GPO'},
+  {type:'gpo_double',code:'G2',label:'Double GPO',cat:'Power / GPO'},
+  {type:'gpo_wp',code:'WP',label:'Weatherproof GPO',cat:'Power / GPO'},
+  {type:'gpo_floor',code:'FG',label:'Floor GPO',cat:'Power / GPO'},
+  {type:'light_batten',code:'L',label:'Batten / ceiling light',cat:'Lighting'},
+  {type:'downlight',code:'DL',label:'Downlight',cat:'Lighting'},
+  {type:'led_strip',code:'LED',label:'LED strip',cat:'Lighting'},
+  {type:'wall_light',code:'WL',label:'Wall light',cat:'Lighting'},
+  {type:'pendant',code:'PD',label:'Pendant',cat:'Lighting'},
+  {type:'emergency_light',code:'E',label:'Emergency light',cat:'Emergency lighting'},
+  {type:'exit_sign',code:'EX',label:'Exit sign',cat:'Emergency lighting'},
+  {type:'switch_1g',code:'S1',label:'1-gang switch',cat:'Switching & control'},
+  {type:'switch_2g',code:'S2',label:'2-gang switch',cat:'Switching & control'},
+  {type:'switch_3g',code:'S3',label:'3-gang switch',cat:'Switching & control'},
+  {type:'dimmer',code:'DM',label:'Dimmer',cat:'Switching & control'},
+  {type:'sensor_pir',code:'PIR',label:'PIR sensor',cat:'Switching & control'},
+  {type:'exhaust_fan',code:'EF',label:'Exhaust fan',cat:'HVAC'},
+  {type:'ceiling_fan',code:'CF',label:'Ceiling fan',cat:'HVAC'},
+  {type:'split_system',code:'AC',label:'Split system A/C',cat:'HVAC'},
+  {type:'smoke_alarm',code:'SD',label:'Smoke alarm',cat:'Other'},
+  {type:'data_point',code:'D',label:'Data point',cat:'Other'},
+  {type:'tv_point',code:'TV',label:'TV point',cat:'Other'},
+  {type:'db_board',code:'DB',label:'Distribution board',cat:'Other'},
+  {type:'hot_water',code:'HWS',label:'Hot water',cat:'Other'}
+];
+const ICON_CAT_COLOR={'Power / GPO':'#2e7d32','Lighting':'#c98a00','Emergency lighting':'#c0392b','Switching & control':'#2f74c0','HVAC':'#138a72','Other':'#6a4bd6'};
+const iconDef=t=>ICON_LIB.find(i=>i.type===t)||{type:t,code:'?',label:t||'Fitting',cat:'Other'};
+const catColor=c=>ICON_CAT_COLOR[c]||'#666';
+const codeFontPx=(code,base)=>{const n=(code||'').length;const f=n>=3?0.30:n===2?0.36:0.46;return Math.round((base||26)*f*10)/10;};
+
+async function loadPlans(){
+  if(S.plan.loading)return;
+  S.plan.loading=true;
+  try{
+    const plans=await sb(`floor_plans?board_id=eq.${S.selectedBoard.id}&order=created_at.asc`);
+    S.plan.plans=plans||[];
+    S.plan.current=(plans&&plans.length)?plans[0]:null;
+    if(S.plan.current){
+      const ic=await sb(`circuit_icons?floor_plan_id=eq.${S.plan.current.id}`);
+      S.plan.icons=ic||[];
+    }else S.plan.icons=[];
+    S.plan.loaded=true;S.plan.loading=false;
+    if(S.view==='board'&&S.tab==='plan')draw();
+  }catch(e){
+    S.plan.loading=false;S.plan.loaded=true;S.plan.current=null;
+    if(S.view==='board'&&S.tab==='plan')draw();
+    showToast('Floor plan load failed');
+  }
+}
+
+async function switchPlan(id){
+  if(S.plan.current&&id===S.plan.current.id)return;
+  const p=S.plan.plans.find(x=>x.id===id);if(!p)return;
+  S.plan.current=p;S.plan.selectedIconId=null;S.plan.placingType=null;
+  try{const ic=await sb(`circuit_icons?floor_plan_id=eq.${id}`);S.plan.icons=ic||[];}catch(e){S.plan.icons=[];}
+  draw();
+}
+
+function initPlanTab(){
+  const canvas=document.getElementById('plan-canvas');
+  if(!canvas)return;
+  renderPlanBar();renderPlanIcons();renderPlanActions();
+  canvas.onpointerdown=onCanvasPointerDown;
+}
+
+function planDims(){const p=S.plan.current||{};return{w:p.width||800,h:p.height||600};}
+
+function canvasCoords(e){
+  const canvas=document.getElementById('plan-canvas');
+  const r=canvas.getBoundingClientRect();
+  let fx=(e.clientX-r.left)/r.width, fy=(e.clientY-r.top)/r.height;
+  fx=Math.max(0,Math.min(1,fx));fy=Math.max(0,Math.min(1,fy));
+  const{w,h}=planDims();
+  return{x:fx*w,y:fy*h,fx,fy};
+}
+
+function onCanvasPointerDown(e){
+  if(e.target.closest('.plan-icon'))return;
+  if(S.plan.editMode&&S.plan.placingType){
+    const{x,y}=canvasCoords(e);
+    addPlanIcon(S.plan.placingType,x,y);
+  }else if(S.plan.selectedIconId){
+    S.plan.selectedIconId=null;renderPlanIcons();renderPlanActions();
+  }
+}
+
+function renderPlanBar(){
+  const bar=document.getElementById('plan-bar');if(!bar||!S.plan.current)return;
+  let h=S.plan.plans.map(p=>`<div class="plan-chip ${p.id===S.plan.current.id?'sel':''}" onclick="switchPlan('${p.id}')">${esc(p.name||'Plan')}</div>`).join('');
+  h+=`<div class="plan-chip" style="border-style:dashed" onclick="openAddPlan()">＋ Plan</div>`;
+  bar.innerHTML=h;
+}
+
+function renderPlanIcons(){
+  const wrap=document.getElementById('plan-icons');if(!wrap)return;
+  const{w,h}=planDims();
+  wrap.innerHTML=S.plan.icons.map(ic=>{
+    const def=iconDef(ic.icon_type);
+    const col=catColor(def.cat);
+    const left=(ic.x/w)*100, top=(ic.y/h)*100;
+    const sc=ic.scale||1, rot=ic.rotation||0;
+    const sel=ic.id===S.plan.selectedIconId;
+    const circ=ic.circuit_id?S.circuits.find(c=>c.id===ic.circuit_id):null;
+    return `<div class="plan-icon ${sel?'sel':''}" data-id="${ic.id}" style="left:${left}%;top:${top}%;transform:translate(-50%,-50%) scale(${sc})">
+      <div class="disc" style="background:${col};font-size:${codeFontPx(def.code,26)}px;transform:rotate(${rot}deg)">${esc(def.code)}</div>
+      ${circ?`<div class="ic-circ">C${esc(circ.number)}</div>`:''}
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('.plan-icon').forEach(el=>{el.onpointerdown=ev=>onIconPointerDown(ev,el);});
+}
+
+function onIconPointerDown(e,el){
+  e.stopPropagation();
+  const id=el.dataset.id;
+  const ic=S.plan.icons.find(x=>x.id===id);if(!ic)return;
+  if(!S.plan.editMode){ if(ic.circuit_id)selCircuit(ic.circuit_id); return; }
+  // select (without full rebuild so the drag isn't interrupted)
+  S.plan.selectedIconId=id;
+  document.querySelectorAll('.plan-icon.sel').forEach(x=>x.classList.remove('sel'));
+  el.classList.add('sel');
+  renderPlanActions();
+  const canvas=document.getElementById('plan-canvas');
+  const r=canvas.getBoundingClientRect();
+  const{w,h}=planDims();
+  const startX=e.clientX,startY=e.clientY;let moved=false,nx=ic.x,ny=ic.y;
+  const move=ev=>{
+    if(Math.abs(ev.clientX-startX)>3||Math.abs(ev.clientY-startY)>3)moved=true;
+    let fx=(ev.clientX-r.left)/r.width, fy=(ev.clientY-r.top)/r.height;
+    fx=Math.max(0,Math.min(1,fx));fy=Math.max(0,Math.min(1,fy));
+    nx=fx*w;ny=fy*h;
+    el.style.left=(fx*100)+'%';el.style.top=(fy*100)+'%';
+  };
+  const up=()=>{
+    document.removeEventListener('pointermove',move);
+    document.removeEventListener('pointerup',up);
+    if(moved){ic.x=Math.round(nx);ic.y=Math.round(ny);persistIcon(id,{x:ic.x,y:ic.y});}
+  };
+  document.addEventListener('pointermove',move);
+  document.addEventListener('pointerup',up);
+}
+
+function renderPlanActions(){
+  const bar=document.getElementById('plan-actions');if(!bar)return;
+  const pl=S.plan;
+  if(!pl.editMode){
+    bar.innerHTML=`<div style="flex:1;font-size:11px;color:#888">${pl.icons.length} fitting${pl.icons.length===1?'':'s'}${pl.icons.length?' · tap one to open its circuit':''}</div>
+      <button class="add-btn" onclick="enterPlanEdit()">✏ Edit plan</button>`;
+    return;
+  }
+  if(pl.placingType){
+    const d=iconDef(pl.placingType);
+    bar.innerHTML=`<div style="flex:1;font-size:12px;color:#0d1b2e;font-weight:600">Tap the plan to place: ${esc(d.label)}</div>
+      <button class="ghost-btn" onclick="cancelPlacing()">Cancel</button>`;
+    return;
+  }
+  if(pl.selectedIconId){
+    const ic=pl.icons.find(x=>x.id===pl.selectedIconId);
+    const circ=ic&&ic.circuit_id?S.circuits.find(c=>c.id===ic.circuit_id):null;
+    bar.innerHTML=`
+      <button class="icon-tool" onclick="openLinkCircuit()"><span style="font-size:14px">🔌</span>${circ?'C'+esc(circ.number):'Link'}</button>
+      <button class="icon-tool" onclick="rotateIcon()"><span style="font-size:14px">⟳</span>Rotate</button>
+      <button class="icon-tool" onclick="scaleIcon(-1)"><span style="font-size:15px">－</span>Smaller</button>
+      <button class="icon-tool" onclick="scaleIcon(1)"><span style="font-size:15px">＋</span>Bigger</button>
+      <button class="icon-tool danger" onclick="deleteIcon()"><span style="font-size:14px">🗑</span>Delete</button>`;
+    return;
+  }
+  bar.innerHTML=`<button class="add-btn" style="flex:1;justify-content:center" onclick="openPalette()">＋ Add fitting</button>
+    <button class="ghost-btn" onclick="exitPlanEdit()">Done</button>`;
+}
+
+function enterPlanEdit(){requirePin(()=>{S.plan.editMode=true;renderPlanActions();renderPlanIcons();showToast('Editing — tap ＋ Add fitting');});}
+function exitPlanEdit(){S.plan.editMode=false;S.plan.selectedIconId=null;S.plan.placingType=null;renderPlanActions();renderPlanIcons();}
+function cancelPlacing(){S.plan.placingType=null;renderPlanActions();}
+
+function requirePin(onOk){
+  if(S.currentUser){onOk();return;}
+  const o=document.createElement('div');o.className='modal-overlay';
+  o.onclick=e=>{if(e.target===o)o.remove();};
+  o.innerHTML=`<div class="modal-box">
+    <div class="modal-title">Enter your PIN to edit</div>
+    <div class="info-note">Changes to the floor plan are stamped with your name.</div>
+    <input class="pin-input" id="pp-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+    <div class="err-msg" id="pp-err"></div>
+    <button class="primary-btn" id="pp-go">Unlock editing</button>
+    <button class="cancel-btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+  </div>`;
+  document.getElementById('app').appendChild(o);
+  const go=()=>{
+    const val=(document.getElementById('pp-pin').value||'').trim();
+    const u=S.users.find(x=>x.pin_hash===val);
+    if(!u){const er=document.getElementById('pp-err');er.style.display='block';er.textContent='Incorrect PIN — try again';return;}
+    S.currentUser=u;o.remove();onOk();
+  };
+  document.getElementById('pp-go').onclick=go;
+  document.getElementById('pp-pin').addEventListener('keydown',e=>{if(e.key==='Enter')go();});
+}
+
+function openPalette(){
+  const cats=['Power / GPO','Lighting','Emergency lighting','Switching & control','HVAC','Other'];
+  let body=`<div class="modal-title">Add a fitting</div>`;
+  cats.forEach(cat=>{
+    const items=ICON_LIB.filter(i=>i.cat===cat);if(!items.length)return;
+    body+=`<div class="pal-cat">${esc(cat)}</div><div class="palette-grid">`;
+    items.forEach(i=>{
+      body+=`<div class="pal-item" onclick="pickIcon('${i.type}')">
+        <div class="pal-disc" style="background:${catColor(cat)};font-size:${codeFontPx(i.code,30)}px">${esc(i.code)}</div>
+        <div class="pal-name">${esc(i.label)}</div></div>`;
+    });
+    body+=`</div>`;
+  });
+  body+=`<button class="cancel-btn" onclick="this.closest('.modal-overlay').remove()">Close</button>`;
+  const o=document.createElement('div');o.className='modal-overlay';
+  o.onclick=e=>{if(e.target===o)o.remove();};
+  o.innerHTML=`<div class="modal-box">${body}</div>`;
+  document.getElementById('app').appendChild(o);
+}
+function pickIcon(type){document.querySelector('.modal-overlay')?.remove();S.plan.placingType=type;renderPlanActions();showToast('Tap the plan to place');}
+
+async function addPlanIcon(type,x,y){
+  const data={floor_plan_id:S.plan.current.id,icon_type:type,x:Math.round(x),y:Math.round(y),scale:1,rotation:0};
+  try{
+    const res=await sb('circuit_icons',{method:'POST',body:JSON.stringify(data)});
+    const ni=Array.isArray(res)?res[0]:res;
+    S.plan.icons.push(ni);
+    S.plan.placingType=null;S.plan.selectedIconId=ni.id;
+    renderPlanIcons();renderPlanActions();
+    showToast('✓ '+iconDef(type).label+' placed');
+  }catch(e){showToast('Failed: '+e.message);}
+}
+
+async function persistIcon(id,patch){
+  const ic=S.plan.icons.find(x=>x.id===id);if(ic)Object.assign(ic,patch);
+  try{await sb(`circuit_icons?id=eq.${id}`,{method:'PATCH',body:JSON.stringify(patch)});}
+  catch(e){showToast('Save failed');}
+}
+
+function rotateIcon(){const ic=S.plan.icons.find(x=>x.id===S.plan.selectedIconId);if(!ic)return;const r=(((ic.rotation||0)+45)%360);persistIcon(ic.id,{rotation:r});renderPlanIcons();}
+function scaleIcon(dir){const ic=S.plan.icons.find(x=>x.id===S.plan.selectedIconId);if(!ic)return;let s=(ic.scale||1)+dir*0.2;s=Math.max(0.6,Math.min(2.6,Math.round(s*10)/10));persistIcon(ic.id,{scale:s});renderPlanIcons();}
+async function deleteIcon(){
+  const id=S.plan.selectedIconId;if(!id)return;
+  try{
+    await sb(`circuit_icons?id=eq.${id}`,{method:'DELETE'});
+    S.plan.icons=S.plan.icons.filter(x=>x.id!==id);S.plan.selectedIconId=null;
+    renderPlanIcons();renderPlanActions();showToast('✓ Deleted');
+  }catch(e){showToast('Delete failed');}
+}
+
+function openLinkCircuit(){
+  const ic=S.plan.icons.find(x=>x.id===S.plan.selectedIconId);if(!ic)return;
+  let body=`<div class="modal-title">Link to a circuit</div><p style="font-size:12px;color:#888;margin-bottom:10px;line-height:1.5">Tapping this fitting on the plan will open the linked circuit.</p><div style="max-height:50vh;overflow:auto">`;
+  if(!S.circuits.length)body+=`<div style="color:#aaa;font-size:13px;padding:16px;text-align:center">No circuits on this board yet</div>`;
+  S.circuits.slice().sort((a,b)=>(parseInt(a.number)||0)-(parseInt(b.number)||0)).forEach(c=>{
+    const sel=ic.circuit_id===c.id;
+    body+=`<div onclick="setIconCircuit('${c.id}')" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid ${sel?'#378ADD':'#eee'};background:${sel?'#E6F1FB':'#fff'};border-radius:8px;margin-bottom:6px;cursor:pointer">
+      <div style="width:30px;height:30px;border-radius:7px;background:#0d1b2e;color:#f0a500;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${esc(c.number)}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${esc(c.label||'Unlabelled')}</div><div style="font-size:11px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.device_type||'—')}</div></div>
+      ${sel?'<span style="color:#378ADD;font-weight:700">✓</span>':''}</div>`;
+  });
+  body+=`</div>`;
+  if(ic.circuit_id)body+=`<button class="ghost-btn" style="width:100%;margin-top:6px" onclick="setIconCircuit(null)">Unlink circuit</button>`;
+  body+=`<button class="cancel-btn" onclick="this.closest('.modal-overlay').remove()">Close</button>`;
+  const o=document.createElement('div');o.className='modal-overlay';o.onclick=e=>{if(e.target===o)o.remove();};
+  o.innerHTML=`<div class="modal-box">${body}</div>`;document.getElementById('app').appendChild(o);
+}
+function setIconCircuit(cid){
+  const id=S.plan.selectedIconId;
+  persistIcon(id,{circuit_id:cid});
+  document.querySelector('.modal-overlay')?.remove();
+  renderPlanIcons();renderPlanActions();
+  showToast(cid?'✓ Linked to circuit':'✓ Unlinked');
+}
+
+function downscaleImage(file,maxDim,quality){
+  return new Promise((resolve,reject)=>{
+    const fr=new FileReader();
+    fr.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        let w=img.width,h=img.height;
+        if(w>maxDim||h>maxDim){const r=Math.min(maxDim/w,maxDim/h);w=Math.round(w*r);h=Math.round(h*r);}
+        const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+        const ctx=cv.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);
+        resolve({dataUrl:cv.toDataURL('image/jpeg',quality),w,h});
+      };
+      img.onerror=reject;img.src=fr.result;
+    };
+    fr.onerror=reject;fr.readAsDataURL(file);
+  });
+}
+
+function openAddPlan(){
+  requirePin(()=>{
+    const o=document.createElement('div');o.className='modal-overlay';o.onclick=e=>{if(e.target===o)o.remove();};
+    o.innerHTML=`<div class="modal-box">
+      <div class="modal-title">Add floor plan</div>
+      <label class="field-label">Plan name</label>
+      <input class="field-input" id="np-name" placeholder="e.g. Ground floor">
+      <label class="field-label">Plan image (photo or scan)</label>
+      <input class="field-input" id="np-file" type="file" accept="image/*" style="padding:7px">
+      <div id="np-preview" style="margin:6px 0 10px;text-align:center"></div>
+      <div class="err-msg" id="np-err"></div>
+      <button class="primary-btn" id="np-save">Create floor plan</button>
+      <button class="cancel-btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+    </div>`;
+    document.getElementById('app').appendChild(o);
+    let imgData=null,imgW=800,imgH=600;
+    const fileEl=document.getElementById('np-file');
+    fileEl.onchange=async()=>{
+      const f=fileEl.files[0];if(!f)return;
+      const er=document.getElementById('np-err');er.style.display='none';
+      try{
+        const r=await downscaleImage(f,1600,0.72);
+        imgData=r.dataUrl;imgW=r.w;imgH=r.h;
+        document.getElementById('np-preview').innerHTML=`<img src="${imgData}" style="max-width:100%;max-height:170px;border-radius:6px;border:1px solid #eee"><div style="font-size:10px;color:#aaa;margin-top:4px">${imgW}×${imgH}px</div>`;
+      }catch(e){er.style.display='block';er.textContent='Could not read that image — try another file.';}
+    };
+    document.getElementById('np-save').onclick=async()=>{
+      const er=document.getElementById('np-err');
+      const name=(document.getElementById('np-name').value||'').trim()||'Floor plan';
+      if(!imgData){er.style.display='block';er.textContent='Please choose a plan image first.';return;}
+      const btn=document.getElementById('np-save');btn.disabled=true;
+      try{
+        const res=await sb('floor_plans',{method:'POST',body:JSON.stringify({board_id:S.selectedBoard.id,name,image_url:imgData,width:imgW,height:imgH})});
+        const np=Array.isArray(res)?res[0]:res;
+        S.plan.plans.push(np);S.plan.current=np;S.plan.icons=[];S.plan.loaded=true;S.plan.selectedIconId=null;S.plan.placingType=null;
+        o.remove();draw();showToast('✓ Floor plan added');
+      }catch(e){btn.disabled=false;er.style.display='block';er.textContent='Failed: '+e.message;}
+    };
+  });
 }
 
 init();
