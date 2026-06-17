@@ -42,7 +42,8 @@ body{font-family:'Barlow Condensed','Barlow',system-ui,sans-serif;background:#e8
 .chip-green{background:#EAF3DE;color:#3B6D11}
 .chip-amber{background:#FAEEDA;color:#854F0B}
 .chip-red{background:#FCEBEB;color:#A32D2D}
-.empty-slot{display:flex;align-items:center;border-radius:8px;border:1px dashed #e0e0e0;background:#fafafa;min-height:46px;overflow:hidden;cursor:default;opacity:0.6}
+.empty-slot{display:flex;align-items:center;border-radius:8px;border:1px dashed #d0d0d0;background:#fafafa;min-height:46px;overflow:hidden;cursor:pointer;opacity:0.75;transition:all 0.1s}
+.empty-slot:active{opacity:1;background:#f0f0f0}
 
 /* ── Phase legend ── */
 .phase-legend{display:flex;gap:10px;padding:8px 10px;background:#fff;border-radius:8px;margin:0 10px 6px;border:0.5px solid #eee}
@@ -306,9 +307,10 @@ function drawBoard(app){
           ${chipHtml(status)}
         </div>`;
       }else{
-        h+=`<div class="empty-slot">
+        h+=`<div class="empty-slot" onclick="openAddCircuit(${i})">
           <div class="phase-tab" style="background:${phColor};opacity:0.3"></div>
-          <div style="padding:5px 8px"><div style="font-size:10px;font-weight:700;color:#ccc">Circuit ${i}</div><div style="font-size:11px;color:#ddd;margin-top:1px">Empty</div></div>
+          <div style="padding:5px 8px;flex:1"><div style="font-size:10px;font-weight:700;color:#ccc">Circuit ${i}</div><div style="font-size:11px;color:#bbb;margin-top:1px">Tap to add</div></div>
+          <span style="font-size:16px;color:#ccc;padding-right:8px;font-weight:300">+</span>
         </div>`;
       }
     }
@@ -332,9 +334,10 @@ function drawBoard(app){
           ${chipHtml(status)}
         </div>`;
       }else{
-        h+=`<div class="empty-slot">
+        h+=`<div class="empty-slot" onclick="openAddCircuit(${i})">
           <div class="phase-tab" style="background:${phColor};opacity:0.3"></div>
-          <div style="padding:5px 8px"><div style="font-size:10px;font-weight:700;color:#ccc">Circuit ${i}</div><div style="font-size:11px;color:#ddd;margin-top:1px">Empty</div></div>
+          <div style="padding:5px 8px;flex:1"><div style="font-size:10px;font-weight:700;color:#ccc">Circuit ${i}</div><div style="font-size:11px;color:#bbb;margin-top:1px">Tap to add</div></div>
+          <span style="font-size:16px;color:#ccc;padding-right:8px;font-weight:300">+</span>
         </div>`;
       }
     }
@@ -449,6 +452,12 @@ function drawCircuit(app){
 }
 
 // ── Modals ────────────────────────────────────────────────────────────────────
+function openAddCircuit(slotNum){
+  S._addSlot=slotNum;
+  S.modal='add-circuit';
+  drawModal();
+}
+
 function openModal(type){S.modal=type;drawModal();}
 function closeModal(){S.modal=null;document.querySelector('.modal-overlay')?.remove();}
 
@@ -461,7 +470,33 @@ function drawModal(){
   const whoLine=loggedIn?`<div style="font-size:12px;color:#555;margin-bottom:14px">As: <strong>${esc(S.currentUser.name)}</strong></div>`:`<div class="info-note">Enter your PIN — edits are stamped with your name</div>`;
   let body='';
 
-  if(S.modal==='edit'&&c){
+  if(S.modal==='add-circuit'){
+    const slot=S._addSlot||1;
+    const b=S.selectedBoard;
+    const ph=phaseFor(slot,b?.supply_type||'three_phase');
+    const phLabel={R:'Red phase',W:'White phase',B:'Blue phase',SP:'Single phase'}[ph]||'—';
+    const phColor=phaseColor(ph);
+    body=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <div style="width:6px;height:40px;border-radius:3px;background:${phColor};flex-shrink:0"></div>
+      <div><div class="modal-title" style="margin-bottom:2px">Add circuit ${slot}</div>
+      <div style="font-size:12px;color:#888">${phLabel} · ${esc(b?.name||'')}</div></div>
+    </div>
+    ${whoLine}
+    <label class="field-label">Label *</label><input class="field-input" id="ac-label" placeholder="e.g. Kitchen Appliances">
+    <label class="field-label">Protection device</label><input class="field-input" id="ac-device" placeholder="e.g. 20A MCB + RCD">
+    <label class="field-label">Cable size</label><input class="field-input" id="ac-cable" placeholder="e.g. 2.5mm² TPS">
+    <label class="field-label">Install date</label><input class="field-input" id="ac-date" type="date">
+    <label class="field-label">Notes</label><textarea class="field-textarea" id="ac-notes" placeholder="Any notes about this circuit…"></textarea>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><input type="checkbox" id="ac-rcd"><label for="ac-rcd" style="font-size:13px">Has RCD protection</label></div>
+    <div id="ac-interval-wrap" style="display:none">
+      <label class="field-label">Test interval</label>
+      <select class="field-input" id="ac-interval">${[3,6,12,24].map(m=>`<option value="${m}"${m===6?' selected':''}>${m} months</option>`).join('')}</select>
+    </div>
+    ${!loggedIn?pinField:''}
+    <button class="primary-btn" id="m-save" onclick="saveAddCircuit()">Add circuit</button>
+    <button class="cancel-btn" onclick="closeModal()">Cancel</button>`;
+  }
+  else if(S.modal==='edit'&&c){
     body=`<div class="modal-title">Edit — Circuit ${esc(c.number)}</div>${whoLine}
       <label class="field-label">Label</label><input class="field-input" id="e-label" value="${esc(c.label||'')}" placeholder="e.g. Kitchen Appliances">
       <label class="field-label">Protection device</label><input class="field-input" id="e-device" value="${esc(c.device_type||'')}" placeholder="e.g. 20A MCB + RCD">
@@ -509,6 +544,10 @@ function drawModal(){
   if(rcdCb)rcdCb.addEventListener('change',()=>{
     const w=document.getElementById('e-interval-wrap');if(w)w.style.display=rcdCb.checked?'':'none';
   });
+  const acRcdCb=document.getElementById('ac-rcd');
+  if(acRcdCb)acRcdCb.addEventListener('change',()=>{
+    const w=document.getElementById('ac-interval-wrap');if(w)w.style.display=acRcdCb.checked?'':'none';
+  });
 }
 
 window._cat='';window._pri='normal';
@@ -521,6 +560,42 @@ function getPin(){
   const user=S.users.find(u=>u.pin_hash===val);
   if(!user){const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Incorrect PIN — try again';}}
   return user||null;
+}
+
+async function saveAddCircuit(){
+  const user=getPin();if(!user)return;
+  const label=(document.getElementById('ac-label')?.value||'').trim();
+  if(!label){
+    const err=document.getElementById('m-err');
+    if(err){err.style.display='block';err.textContent='Please enter a label for this circuit.';}
+    return;
+  }
+  const btn=document.getElementById('m-save');if(btn)btn.disabled=true;
+  const hasRcd=document.getElementById('ac-rcd')?.checked||false;
+  const data={
+    board_id:S.selectedBoard.id,
+    number:String(S._addSlot),
+    label,
+    device_type:document.getElementById('ac-device')?.value||null,
+    cable_size:document.getElementById('ac-cable')?.value||null,
+    install_date:document.getElementById('ac-date')?.value||null,
+    notes:document.getElementById('ac-notes')?.value||null,
+    has_rcd:hasRcd,
+    test_interval_months:hasRcd?parseInt(document.getElementById('ac-interval')?.value)||6:6,
+    last_edited_by:user.name,
+    last_edited_at:new Date().toISOString()
+  };
+  try{
+    const res=await sb('circuits',{method:'POST',body:JSON.stringify(data)});
+    const nc=Array.isArray(res)?res[0]:res;
+    S.circuits=[...S.circuits,nc];
+    S.currentUser=user;S.modal=null;
+    draw();showToast('✓ Circuit '+S._addSlot+' added');
+  }catch(e){
+    if(btn)btn.disabled=false;
+    const err=document.getElementById('m-err');
+    if(err){err.style.display='block';err.textContent='Failed: '+e.message;}
+  }
 }
 
 async function saveEdit(){
