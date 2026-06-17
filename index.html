@@ -366,6 +366,8 @@ function drawBoard(app){
     h+=`</div>`;
   }else if(S.tab==='qr'){
     const url=boardURL(b);
+    S._qrUrl=url;
+    S._qrName=b.name;
     h+=`<div class="scroll">
       <div class="card" style="text-align:center;padding:20px">
         <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:4px">${esc(b.name)}</div>
@@ -373,15 +375,15 @@ function drawBoard(app){
         <div id="qr-container" style="display:inline-block;padding:16px;background:#fff;border:0.5px solid #e8e8e8;border-radius:10px;margin-bottom:16px"></div>
         <div style="font-size:10px;color:#aaa;word-break:break-all;margin-bottom:16px;font-family:monospace;padding:0 8px">${esc(url)}</div>
         <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-          <button class="add-btn" onclick="shareBoard('${esc(url)}','${esc(b.name)}')">
+          <button class="add-btn" onclick="shareBoard()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
             Share
           </button>
-          <button class="add-btn" onclick="downloadQR('${esc(b.name)}')">
+          <button class="add-btn" onclick="downloadQR()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Download
           </button>
-          <button class="ghost-btn" onclick="copyURL('${esc(url)}')">Copy URL</button>
+          <button class="ghost-btn" onclick="copyURL(S._qrUrl)">Copy URL</button>
         </div>
       </div>
       <div class="card" style="padding:14px">
@@ -390,7 +392,7 @@ function drawBoard(app){
       </div>
     </div>`;
     // Generate QR after render
-    setTimeout(()=>generateQR('${esc(url)}'),50);
+    setTimeout(()=>generateQR(url),50);
   }else{
     h+=`<div class="scroll"><div class="card" style="text-align:center;padding:40px 20px;color:#aaa">
       <div style="font-size:36px;margin-bottom:10px">🗺️</div>
@@ -714,32 +716,25 @@ function generateQR(url){
   container.appendChild(img);
 }
 
-async function shareBoard(url,name){
+async function shareBoard(){
+  const url=S._qrUrl;const name=S._qrName||'Switchboard';
   if(navigator.share){
-    try{
-      await navigator.share({title:name+' — Switchboard Legend',text:'Scan or tap to view the switchboard legend for '+name,url});
-    }catch(e){if(e.name!=='AbortError')copyURL(url);}
-  }else{
-    copyURL(url);
-  }
+    try{await navigator.share({title:name+' — Switchboard Legend',text:'Scan or tap to view the switchboard legend for '+name,url});}
+    catch(e){if(e.name!=='AbortError')copyURL(url);}
+  }else{copyURL(url);}
 }
 
-function downloadQR(name){
+function downloadQR(){
+  const name=S._qrName||'switchboard';
   const img=document.querySelector('#qr-container img');
   if(!img){showToast('QR code not loaded yet');return;}
-  // Fetch image and download
   fetch(img.src).then(r=>r.blob()).then(blob=>{
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download=(name||'switchboard').replace(/[^a-z0-9]/gi,'-').toLowerCase()+'-qr.png';
-    a.click();
-    URL.revokeObjectURL(a.href);
+    a.download=name.replace(/[^a-z0-9]/gi,'-').toLowerCase()+'-qr.png';
+    a.click();URL.revokeObjectURL(a.href);
     showToast('✓ QR code downloaded');
-  }).catch(()=>{
-    // Fallback — open image in new tab for manual save
-    window.open(img.src,'_blank');
-    showToast('Right-click the image to save');
-  });
+  }).catch(()=>{window.open(img.src,'_blank');showToast('Right-click the image to save');});
 }
 
 function copyURL(url){
