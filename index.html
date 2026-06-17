@@ -94,6 +94,7 @@ body{font-family:'Barlow Condensed','Barlow',system-ui,sans-serif;background:#e8
 .qr-url{font-size:11px;color:#378ADD;word-break:break-all;margin-top:6px;font-family:monospace}
 @media(min-width:481px){#app{box-shadow:0 0 40px rgba(0,0,0,0.1)}}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 <div id="app"><div class="center-msg"><div style="font-size:40px">⚡</div><div>Connecting…</div></div></div>
@@ -705,15 +706,15 @@ function drawAdmin(app){
 function generateQR(url){
   const container=document.getElementById('qr-container');
   if(!container)return;
-  // Use QR Server API to generate QR code image
-  const size=200;
-  const img=document.createElement('img');
-  img.src=`https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}&format=png&margin=0`;
-  img.width=size;img.height=size;
-  img.style.display='block';
-  img.alt='QR Code';
   container.innerHTML='';
-  container.appendChild(img);
+  new QRCode(container,{
+    text:url,
+    width:200,
+    height:200,
+    colorDark:'#000000',
+    colorLight:'#ffffff',
+    correctLevel:QRCode.CorrectLevel.M
+  });
 }
 
 async function shareBoard(){
@@ -726,15 +727,13 @@ async function shareBoard(){
 
 function downloadQR(){
   const name=S._qrName||'switchboard';
-  const img=document.querySelector('#qr-container img');
-  if(!img){showToast('QR code not loaded yet');return;}
-  fetch(img.src).then(r=>r.blob()).then(blob=>{
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
-    a.download=name.replace(/[^a-z0-9]/gi,'-').toLowerCase()+'-qr.png';
-    a.click();URL.revokeObjectURL(a.href);
-    showToast('✓ QR code downloaded');
-  }).catch(()=>{window.open(img.src,'_blank');showToast('Right-click the image to save');});
+  const canvas=document.querySelector('#qr-container canvas');
+  if(!canvas){showToast('QR code not loaded yet');return;}
+  const a=document.createElement('a');
+  a.href=canvas.toDataURL('image/png');
+  a.download=name.replace(/[^a-z0-9]/gi,'-').toLowerCase()+'-qr.png';
+  a.click();
+  showToast('✓ QR code downloaded');
 }
 
 function copyURL(url){
