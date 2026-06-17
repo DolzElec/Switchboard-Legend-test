@@ -102,8 +102,9 @@ const DB_URL='https://ymbzmszlccgfzdqgxsus.supabase.co';
 const DB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltYnptc3psY2NnZnpkcWd4c3VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1ODM1NTgsImV4cCI6MjA5NzE1OTU1OH0.Nnk9WN55DTMfwTt0tVoqJ3Z8wb5dB9aRivz9qKrq4Vk';
 
 const sb=async(path,opts={})=>{
+  const isDelete=opts.method==='DELETE';
   const r=await fetch(`${DB_URL}/rest/v1/${path}`,{
-    headers:{apikey:DB_KEY,Authorization:`Bearer ${DB_KEY}`,'Content-Type':'application/json',Prefer:'return=representation',...(opts.headers||{})},
+    headers:{apikey:DB_KEY,Authorization:`Bearer ${DB_KEY}`,'Content-Type':'application/json',...(isDelete?{}:{Prefer:'return=representation'}),...(opts.headers||{})},
     ...opts
   });
   const t=await r.text();
@@ -663,7 +664,7 @@ function drawAdmin(app){
     h+=`<button class="add-btn" style="width:100%;justify-content:center;margin-top:4px" onclick="openAddBoard()">+ Add switchboard</button>`;
   }else{
     h+=`<div class="info-note">Each person has a unique 4-digit PIN. All edits and test logs are stamped with their name.</div>`;
-    S.users.forEach(u=>{h+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;font-size:14px">${esc(u.name)}</span><span style="font-size:16px;letter-spacing:5px;color:#ccc">••••</span></div><div style="font-size:11px;color:#888;margin-top:3px">${esc(u.role||'editor')}</div></div>`;});
+    S.users.forEach(u=>{h+=`<div class="card"><div style="display:flex;align-items:center;gap:10px"><div style="flex:1"><div style="font-weight:600;font-size:14px">${esc(u.name)}</div><div style="font-size:11px;color:#888;margin-top:2px">${esc(u.role||'editor')}</div></div><button onclick="openEditUser('${u.id}')" style="background:#f5f5f5;border:0.5px solid #ddd;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;color:#555">Edit</button><button onclick="openDeleteUser('${u.id}','${esc(u.name)}')" style="background:#FCEBEB;border:0.5px solid #f5c6c6;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;color:#A32D2D">Remove</button></div></div>`;});
     h+=`<button class="add-btn" style="width:100%;justify-content:center;margin-top:4px" onclick="openAddUser()">+ Add user</button>`;
   }
   h+=`</div>`;
@@ -737,6 +738,85 @@ function openAddUser(){
     <button class="cancel-btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
   </div>`;
   document.getElementById('app').appendChild(o);
+}
+
+function openEditUser(id){
+  const u=S.users.find(x=>x.id===id);if(!u)return;
+  const o=document.createElement('div');o.className='modal-overlay';
+  o.onclick=e=>{if(e.target===o)o.remove();};
+  o.innerHTML=`<div class="modal-box">
+    <div class="modal-title">Edit user — ${esc(u.name)}</div>
+    <label class="field-label">Name</label>
+    <input class="field-input" id="eu-name" value="${esc(u.name)}" placeholder="e.g. Declan D">
+    <label class="field-label">New PIN (leave blank to keep current)</label>
+    <input class="pin-input" id="eu-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+    <label class="field-label" style="margin-bottom:6px">Role</label>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <div class="supply-opt ${u.role==='admin'?'sel':''}" id="eu-role-admin" onclick="selRole('admin')">Admin</div>
+      <div class="supply-opt ${u.role!=='admin'?'sel':''}" id="eu-role-editor" onclick="selRole('editor')">Editor</div>
+    </div>
+    <div class="err-msg" id="eu-err"></div>
+    <button class="primary-btn" id="eu-save" onclick="doEditUser('${u.id}')">Save changes</button>
+    <button class="cancel-btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+  </div>`;
+  document.getElementById('app').appendChild(o);
+  window._euRole=u.role||'editor';
+}
+
+function selRole(r){
+  window._euRole=r;
+  ['admin','editor'].forEach(id=>{
+    const el=document.getElementById('eu-role-'+id);
+    if(el)el.classList.toggle('sel',id===r);
+  });
+}
+
+async function doEditUser(id){
+  const name=(document.getElementById('eu-name')?.value||'').trim();
+  if(!name){const err=document.getElementById('eu-err');if(err){err.style.display='block';err.textContent='Name cannot be empty.';}return;}
+  const pin=(document.getElementById('eu-pin')?.value||'').trim();
+  if(pin&&pin.length!==4){const err=document.getElementById('eu-err');if(err){err.style.display='block';err.textContent='PIN must be exactly 4 digits.';}return;}
+  const btn=document.getElementById('eu-save');if(btn)btn.disabled=true;
+  const data={name,role:window._euRole||'editor'};
+  if(pin)data.pin_hash=pin;
+  try{
+    const res=await sb(`users?id=eq.${id}`,{method:'PATCH',body:JSON.stringify(data)});
+    const updated=Array.isArray(res)?res[0]:res;
+    S.users=S.users.map(u=>u.id===updated.id?updated:u);
+    document.querySelector('.modal-overlay')?.remove();
+    draw();showToast('✓ User updated');
+  }catch(e){
+    if(btn)btn.disabled=false;
+    const err=document.getElementById('eu-err');
+    if(err){err.style.display='block';err.textContent='Failed: '+e.message;}
+  }
+}
+
+function openDeleteUser(id,name){
+  const o=document.createElement('div');o.className='modal-overlay';
+  o.onclick=e=>{if(e.target===o)o.remove();};
+  o.innerHTML=`<div class="modal-box">
+    <div class="modal-title">Remove user</div>
+    <p style="font-size:13px;color:#555;margin-bottom:16px;line-height:1.6">Are you sure you want to remove <strong>${esc(name)}</strong>? This cannot be undone.</p>
+    <div class="err-msg" id="du-err"></div>
+    <button class="primary-btn" id="du-save" style="background:#A32D2D;color:#fff" onclick="doDeleteUser('${id}')">Yes, remove user</button>
+    <button class="cancel-btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+  </div>`;
+  document.getElementById('app').appendChild(o);
+}
+
+async function doDeleteUser(id){
+  const btn=document.getElementById('du-save');if(btn)btn.disabled=true;
+  try{
+    await sb(`users?id=eq.${id}`,{method:'DELETE'});
+    S.users=S.users.filter(u=>u.id!==id);
+    document.querySelector('.modal-overlay')?.remove();
+    draw();showToast('✓ User removed');
+  }catch(e){
+    if(btn)btn.disabled=false;
+    const err=document.getElementById('du-err');
+    if(err){err.style.display='block';err.textContent='Failed: '+e.message;}
+  }
 }
 
 async function doAddUser(){
