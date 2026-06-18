@@ -147,7 +147,7 @@ let S={
   selectedBoard:null,selectedSite:null,selectedCircuit:null,
   tab:'board',circuitTab:'info',adminTab:'boards',
   modal:null,error:null,
-  plan:{loaded:false,loading:false,plans:[],current:null,items:[],editMode:false,tool:'select',placingType:null,selectedId:null,filterCircuit:null,walls:[],wallDraft:null,hoverId:null}
+  plan:{loaded:false,loading:false,plans:[],current:null,items:[],editMode:false,tool:'select',placingType:null,selectedId:null,filterCircuit:null,walls:[],wallDraft:null,hoverId:null,placeCount:0}
 };
 const set=patch=>{Object.assign(S,patch);draw();};
 
@@ -186,7 +186,7 @@ async function init(){
 }
 
 async function loadBoard(board,updateState=true){
-  S.plan={loaded:false,loading:false,plans:[],current:null,items:[],editMode:false,tool:'select',placingType:null,selectedId:null,filterCircuit:null,walls:[],wallDraft:null,hoverId:null};
+  S.plan={loaded:false,loading:false,plans:[],current:null,items:[],editMode:false,tool:'select',placingType:null,selectedId:null,filterCircuit:null,walls:[],wallDraft:null,hoverId:null,placeCount:0};
   if(updateState)set({view:'loading'});
   try{
     const[circuits,tests]=await Promise.all([
@@ -1148,7 +1148,7 @@ function renderPlan(){
   if(p.image_url)s+=`<image href="${esc(p.image_url)}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet"/>`;
   s+=`<g id="pl-walls" stroke="#2f74c0" stroke-width="${SW(2.5)}" stroke-linecap="round" opacity="0.85"></g>`;
   s+=`<g id="pl-loops" fill="none" stroke="#378ADD" stroke-width="${SW(1.6)}" stroke-dasharray="${SW(5)} ${SW(4)}" opacity="0.9"></g>`;
-  s+=`<g id="pl-guides" stroke="#e0245e" stroke-width="${SW(1)}" stroke-dasharray="${SW(4)} ${SW(3)}"></g>`;
+  s+=`<g id="pl-guides" stroke="#f0468a" stroke-width="${SW(0.9)}" stroke-dasharray="${SW(5)} ${SW(4)}" opacity="0.6"></g>`;
   s+=`<g id="pl-items"></g>`;
   s+=`<g id="pl-handles"></g>`;
   svg.innerHTML=s;
@@ -1251,13 +1251,21 @@ function nearestWall(x,y,thr){
   S.plan.walls.forEach(w=>{const pr=projPointSeg(x,y,w.x1,w.y1,w.x2,w.y2);const d=dist(x,y,pr.x,pr.y);if(d<thr&&(!best||d<best.d)){best={x:pr.x,y:pr.y,angle:Math.atan2(w.y2-w.y1,w.x2-w.x1)*180/Math.PI,d};}});
   return best;
 }
+function itemHalf(it){const k=K();if(LINEAR.has(it.icon_type)){return {hx:(+it.length||DEFAULT_LEN[it.icon_type]*k)/2,hy:5*k};}const sc=k*(it.scale||1);return {hx:24*sc,hy:24*sc};}
 function applySnaps(it,nx,ny){
-  let rotation=null;const k=K();
-  if(!LINEAR.has(it.icon_type)){const ws=nearestWall(nx,ny,18*k);if(ws){nx=ws.x;ny=ws.y;rotation=ws.angle;}}
-  const at=12*k;const guides=[];
-  S.plan.items.forEach(o=>{if(o.id===it.id)return;if(Math.abs(o.x-nx)<at){nx=o.x;guides.push(['v',o.x]);}if(Math.abs(o.y-ny)<at){ny=o.y;guides.push(['h',o.y]);}});
+  const k=K();
+  // wall snap + auto-orient takes precedence (point fittings)
+  if(!LINEAR.has(it.icon_type)){const ws=nearestWall(nx,ny,18*k);if(ws){setGuides([]);return {x:ws.x,y:ws.y,rotation:ws.angle};}}
+  // alignment to other fittings — match centre OR edge, H/V (visual aid; snaps like Canva, centre preferred)
+  const thr=7*k;const me=itemHalf(it);const xT=[],yT=[];
+  S.plan.items.forEach(o=>{if(o.id===it.id)return;const oh=itemHalf(o);xT.push([o.x,1],[o.x-oh.hx,0],[o.x+oh.hx,0]);yT.push([o.y,1],[o.y-oh.hy,0],[o.y+oh.hy,0]);});
+  const pick=(n,anchors,targets)=>{let best=null;anchors.forEach(([a,ac])=>targets.forEach(([lt,tc])=>{const dd=Math.abs((n+a)-lt);if(dd<thr){const score=dd-((ac&&tc)?1000:0);if(!best||score<best.score)best={pos:lt-a,guide:lt,score};}}));return best;};
+  const sx=pick(nx,[[0,1],[-me.hx,0],[me.hx,0]],xT);
+  const sy=pick(ny,[[0,1],[-me.hy,0],[me.hy,0]],yT);
+  if(sx)nx=sx.pos;if(sy)ny=sy.pos;
+  const guides=[];if(sx)guides.push(['v',sx.guide]);if(sy)guides.push(['h',sy.guide]);
   setGuides(guides);
-  return {x:nx,y:ny,rotation};
+  return {x:nx,y:ny,rotation:null};
 }
 function snapWallPoint(x,y){const thr=14*K();let best=null;S.plan.walls.forEach(w=>{[[w.x1,w.y1],[w.x2,w.y2]].forEach(([px,py])=>{const d=dist(x,y,px,py);if(d<thr&&(!best||d<best.d))best={x:px,y:py,d};});});return best||{x,y};}
 function maybeSnapToWall(it){if(LINEAR.has(it.icon_type))return;const ws=nearestWall(it.x,it.y,18*K());if(ws){it.x=Math.round(ws.x);it.y=Math.round(ws.y);it.rotation=Math.round(ws.angle);persistItem(it.id,{x:it.x,y:it.y,rotation:it.rotation});}}
@@ -1271,7 +1279,7 @@ async function addPlacement(type,x,y){
   try{
     const res=await sb('circuit_icons',{method:'POST',body:JSON.stringify(data)});
     const ni=Array.isArray(res)?res[0]:res;
-    S.plan.items.push(ni);S.plan.placingType=null;S.plan.selectedId=ni.id;
+    S.plan.items.push(ni);S.plan.selectedId=null;S.plan.placeCount=(S.plan.placeCount||0)+1;
     maybeSnapToWall(ni);
     renderPlan();renderPlanActions();
     showToast('✓ '+(ICON_META[type]?ICON_META[type].name:type)+' placed');
@@ -1311,7 +1319,7 @@ function renderPlanActions(){
   const bar=document.getElementById('plan-actions');if(!bar)return;const pl=S.plan;
   if(!pl.editMode){bar.innerHTML=`<div class="plan-hint">${pl.items.length} fitting${pl.items.length===1?'':'s'} placed${pl.items.length?' · hover a fitting for its switch loop · tap to open its circuit':''}</div><button class="add-btn" onclick="enterPlanEdit()">✏ Edit plan</button>`;return;}
   if(pl.tool==='walls'){bar.innerHTML=`<div class="plan-hint">Tracing walls — tap points to lay segments. Fittings snap &amp; orient to these.</div><button class="icon-tool" onclick="undoWall()">↶ Undo</button><button class="add-btn" onclick="endWalls()">Done walls</button>`;return;}
-  if(pl.placingType){const m=ICON_META[pl.placingType];bar.innerHTML=`<div class="plan-hint">Tap the plan to place: ${esc(m?m.name:pl.placingType)}</div><button class="ghost-btn" onclick="cancelPlacing()">Cancel</button>`;return;}
+  if(pl.placingType){const m=ICON_META[pl.placingType];const n=pl.placeCount||0;bar.innerHTML=`<div class="plan-hint">Placing ${esc(m?m.name:pl.placingType)} — tap to drop, keep tapping for more${n?(' · '+n+' placed'):''}.</div><button class="icon-tool" onclick="openPalette()">Change</button><button class="ghost-btn" onclick="cancelPlacing()">Done</button>`;return;}
   if(pl.selectedId){
     const it=itemById(pl.selectedId);const circ=it&&it.circuit_id?S.circuits.find(c=>c.id===it.circuit_id):null;
     bar.innerHTML=`<button class="icon-tool" onclick="openLinkCircuit()">🔌 ${circ?'C'+esc(circ.number):'Circuit'}</button>`+
@@ -1323,9 +1331,9 @@ function renderPlanActions(){
   bar.innerHTML=`<button class="add-btn" onclick="openPalette()">＋ Add fitting</button><button class="icon-tool" onclick="startWalls()">🧱 Walls</button><button class="ghost-btn" style="margin-left:auto" onclick="exitPlanEdit()">Done</button>`;
 }
 function enterPlanEdit(){requirePin(()=>{S.plan.editMode=true;renderPlanActions();renderPlan();showToast('Editing — tap ＋ Add fitting');});}
-function exitPlanEdit(){S.plan.editMode=false;S.plan.selectedId=null;S.plan.placingType=null;S.plan.tool='select';S.plan.wallDraft=null;renderPlanActions();renderPlan();}
+function exitPlanEdit(){S.plan.editMode=false;S.plan.selectedId=null;S.plan.placingType=null;S.plan.placeCount=0;S.plan.tool='select';S.plan.wallDraft=null;renderPlanActions();renderPlan();}
 function deselect(){S.plan.selectedId=null;renderPlan();renderPlanActions();}
-function cancelPlacing(){S.plan.placingType=null;renderPlanActions();}
+function cancelPlacing(){S.plan.placingType=null;S.plan.placeCount=0;renderPlanActions();}
 
 // ── Modals ──
 function showModal(body){closeAnyModal();const o=document.createElement('div');o.className='modal-overlay';o.onclick=e=>{if(e.target===o)o.remove();};o.innerHTML=`<div class="modal-box">${body}</div>`;document.getElementById('app').appendChild(o);return o;}
@@ -1348,7 +1356,7 @@ function openPalette(){
   body+=`<button class="cancel-btn" onclick="closeAnyModal()">Close</button>`;
   showModal(body);
 }
-function pickIcon(k){closeAnyModal();S.plan.placingType=k;S.plan.tool='select';renderPlanActions();showToast('Tap the plan to place');}
+function pickIcon(k){closeAnyModal();S.plan.placingType=k;S.plan.placeCount=0;S.plan.tool='select';renderPlanActions();showToast('Tap the plan to place');}
 function openLinkCircuit(){
   const it=itemById(S.plan.selectedId);if(!it)return;
   let body=`<div class="modal-title">Link to a circuit</div><p style="font-size:12px;color:#888;margin-bottom:10px;line-height:1.5">Links this fitting to a circuit — used by the circuit filter and by tap-to-open in view mode.</p><div style="max-height:50vh;overflow:auto">`;
