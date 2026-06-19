@@ -1289,7 +1289,7 @@ function renderPlan(){
   const p=S.plan.current;const{w,h}=planDims();const fc=S.plan.filterCircuit;
   let s='';
   if(p.image_url)s+=`<image href="${esc(p.image_url)}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet"/>`;
-  s+=`<g id="pl-walls" stroke="#2f74c0" stroke-width="${SW(2.5)}" stroke-linecap="round" opacity="0.85"></g>`;
+  s+=`<g id="pl-walls" stroke="${S.plan.tool==='walls'&&S.plan.wallTool==='erase'?'#c0392b':'#2f74c0'}" stroke-width="${SW(S.plan.tool==='walls'&&S.plan.wallTool==='erase'?3.2:2.5)}" stroke-linecap="round" opacity="0.85"></g>`;
   s+=`<g id="pl-loops" fill="none" stroke="#378ADD" stroke-width="${SW(1.6)}" stroke-dasharray="${SW(5)} ${SW(4)}" opacity="0.9"></g>`;
   s+=`<g id="pl-guides" stroke="#f0468a" stroke-width="${SW(0.9)}" stroke-dasharray="${SW(5)} ${SW(4)}" opacity="0.6"></g>`;
   s+=`<g id="pl-items"></g>`;
@@ -1363,7 +1363,7 @@ function onSvgPointerUp(e){
 }
 function svgTap(e){
   const {x,y}=clientToPlan(e.clientX,e.clientY);
-  if(S.plan.editMode&&S.plan.tool==='walls'){handleWallClick(x,y);return;}
+  if(S.plan.editMode&&S.plan.tool==='walls'){if(S.plan.wallTool==='erase'){eraseWallAt(x,y);}else{handleWallClick(x,y);}return;}
   if(S.plan.editMode&&S.plan.placingType){addPlacement(S.plan.placingType,x,y);return;}
   if(S.plan.selectedId){S.plan.selectedId=null;S.plan.hoverId=null;renderPlan();renderPlanActions();}
 }
@@ -1515,14 +1515,25 @@ function onPlanKey(e){
 }
 
 // ── Walls ──
-function startWalls(){S.plan.tool='walls';S.plan.selectedId=null;S.plan.placingType=null;S.plan.wallDraft=null;renderPlanActions();renderPlan();showToast('Tap to trace walls');}
-function endWalls(){S.plan.tool='select';S.plan.wallDraft=null;renderPlanActions();renderPlan();}
+function startWalls(){S.plan.tool='walls';S.plan.wallTool='draw';S.plan.selectedId=null;S.plan.placingType=null;S.plan.wallDraft=null;renderPlanActions();renderPlan();showToast('Tap to trace walls');}
+function endWalls(){S.plan.tool='select';S.plan.wallTool='draw';S.plan.wallDraft=null;renderPlanActions();renderPlan();}
 function undoWall(){if(S.plan.wallDraft){S.plan.wallDraft=null;}else{S.plan.walls.pop();persistWalls();}renderPlan();}
 function handleWallClick(x,y){
   if(!S.plan.wallDraft){const sn=snapWallPoint(x,y);S.plan.wallDraft={x1:Math.round(sn.x),y1:Math.round(sn.y),x2:Math.round(sn.x),y2:Math.round(sn.y)};renderWallsLayer();}
   else{const p=wallEndPoint(x,y);const d=S.plan.wallDraft;const seg={x1:d.x1,y1:d.y1,x2:Math.round(p.x),y2:Math.round(p.y)};if(dist(seg.x1,seg.y1,seg.x2,seg.y2)>3){S.plan.walls.push(seg);persistWalls();}S.plan.wallDraft={x1:seg.x2,y1:seg.y2,x2:seg.x2,y2:seg.y2};renderWallsLayer();}
 }
 async function persistWalls(){try{await sb(`floor_plans?id=eq.${S.plan.current.id}`,{method:'PATCH',body:JSON.stringify({walls:S.plan.walls})});S.plan.current.walls=S.plan.walls.slice();}catch(e){showToast('Wall save failed');}}
+function setWallTool(t){S.plan.wallTool=t;S.plan.wallDraft=null;renderPlanActions();renderPlan();}
+function eraseWallAt(x,y){
+  const thr=14*K();let bi=-1,bd=thr;
+  S.plan.walls.forEach((w,i)=>{const pr=projPointSeg(x,y,w.x1,w.y1,w.x2,w.y2);const d=dist(x,y,pr.x,pr.y);if(d<bd){bd=d;bi=i;}});
+  if(bi>=0){S.plan.walls.splice(bi,1);persistWalls();renderPlan();renderPlanActions();showToast('✓ Wall deleted');}
+}
+function confirmClearWalls(){
+  if(!S.plan.walls.length){showToast('No walls to clear');return;}
+  showModal(`<div class="modal-title">Clear all walls?</div><p style="font-size:13px;color:#555;margin-bottom:16px;line-height:1.6">Removes every wall on <strong>${esc(S.plan.current.name||'this plan')}</strong> (${S.plan.walls.length} segment${S.plan.walls.length===1?'':'s'}). Fittings are not affected.</p><button class="primary-btn" style="background:#A32D2D;color:#fff" onclick="clearAllWalls()">Yes, clear walls</button><button class="cancel-btn" onclick="closeAnyModal()">Cancel</button>`);
+}
+function clearAllWalls(){closeAnyModal();S.plan.walls=[];S.plan.wallDraft=null;persistWalls();renderPlan();renderPlanActions();showToast('✓ All walls cleared');}
 
 // ── Toolbar / bar ──
 function renderPlanBar(){
@@ -1541,7 +1552,11 @@ function renderPlanActions(){
     if(pl.selectedId){const it=itemById(pl.selectedId);const circ=it&&it.circuit_id?S.circuits.find(c=>c.id===it.circuit_id):null;const nm=it?(ICON_META[it.icon_type]?ICON_META[it.icon_type].name:it.icon_type):'';bar.innerHTML=`<div class="plan-hint">${esc(nm)}${circ?' · Circuit '+esc(circ.number):''}${it&&it.switch_plate_id?' · switch loop shown':''}</div>`+(circ?`<button class="add-btn" onclick="selCircuit('${circ.id}')">Open circuit</button>`:'')+`<button class="ghost-btn" onclick="deselect()">Hide</button>`;return;}
     bar.innerHTML=`<div class="plan-hint">${pl.items.length} fitting${pl.items.length===1?'':'s'} placed${pl.items.length?' · tap a fitting for its circuit & switch loop · pinch to zoom':''}</div><button class="add-btn" onclick="enterPlanEdit()">✏ Edit plan</button>`;return;
   }
-  if(pl.tool==='walls'){bar.innerHTML=`<div class="plan-hint">Tracing walls — tap corners; lines auto-straighten to right angles. Tap an existing corner to close. Fittings snap to these.</div><button class="icon-tool" onclick="undoWall()">↶ Undo</button><button class="add-btn" onclick="endWalls()">Done walls</button>`;return;}
+  if(pl.tool==='walls'){
+    if(pl.wallTool==='erase'){bar.innerHTML=`<div class="plan-hint">Erase mode — tap any wall to delete it.</div><button class="icon-tool danger" onclick="confirmClearWalls()">🗑 Clear all</button><button class="icon-tool" onclick="setWallTool('draw')">✏ Draw</button><button class="add-btn" onclick="endWalls()">Done</button>`;}
+    else{bar.innerHTML=`<div class="plan-hint">Tracing walls — tap corners; lines auto-straighten to right angles. Tap an existing corner to close.</div><button class="icon-tool" onclick="undoWall()">↶ Undo</button><button class="icon-tool" onclick="setWallTool('erase')">🧽 Erase</button><button class="add-btn" onclick="endWalls()">Done walls</button>`;}
+    return;
+  }
   if(pl.placingType){const m=ICON_META[pl.placingType];const n=pl.placeCount||0;bar.innerHTML=`<div class="plan-hint">Placing ${esc(m?m.name:pl.placingType)} — tap to drop, keep tapping for more${n?(' · '+n+' placed'):''}.</div><button class="icon-tool" onclick="openPalette()">Change</button><button class="ghost-btn" onclick="cancelPlacing()">Done</button>`;return;}
   if(pl.selectedId){
     const it=itemById(pl.selectedId);const circ=it&&it.circuit_id?S.circuits.find(c=>c.id===it.circuit_id):null;
