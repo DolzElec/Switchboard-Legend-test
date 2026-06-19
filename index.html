@@ -1229,12 +1229,39 @@ function linearMarkup(it,faded,hl){
     (hl?`<rect x="${-hw-3*k}" y="${-th}" width="${L+6*k}" height="${th*2}" rx="${th}" fill="none" stroke="#378ADD" stroke-width="${SW(2)}"/>`:'')+
   `</g>`;
 }
+function chainOrder(sw,lights){
+  // greedy nearest-neighbour run starting at the switch
+  const remaining=lights.slice(),order=[];let cx=sw.x,cy=sw.y;
+  while(remaining.length){let bi=0,bd=Infinity;remaining.forEach((l,i)=>{const dd=dist(cx,cy,l.x,l.y);if(dd<bd){bd=dd;bi=i;}});const nx=remaining.splice(bi,1)[0];order.push(nx);cx=nx.x;cy=nx.y;}
+  return order;
+}
 function loopMarkup(){
+  // reveal the dotted switching run for the focused fitting (or every run on a focused switch).
+  // multiple fittings on one switch+gang chain as a single string: switch -> nearest -> next -> ...
   const id=S.plan.hoverId||S.plan.selectedId;
   if(!id)return '';
-  const it=itemById(id);if(!it||!it.switch_plate_id)return '';
-  const sw=itemById(it.switch_plate_id);if(!sw)return '';
-  return `<line x1="${it.x}" y1="${it.y}" x2="${sw.x}" y2="${sw.y}"/><circle cx="${sw.x}" cy="${sw.y}" r="${5*K()}" fill="none" stroke="#378ADD" stroke-width="${SW(1.4)}"/>`;
+  const it=itemById(id);if(!it)return '';
+  const strings=[];
+  if(isSwitchType(it.icon_type)){
+    const byGang={};
+    S.plan.items.forEach(x=>{if(x.switch_plate_id===it.id){const g=x.gang_index||1;(byGang[g]=byGang[g]||[]).push(x);}});
+    Object.keys(byGang).forEach(g=>strings.push({sw:it,lights:byGang[g]}));
+  }else if(it.switch_plate_id){
+    const sw=itemById(it.switch_plate_id);if(!sw)return '';
+    const g=it.gang_index||1;
+    strings.push({sw,lights:S.plan.items.filter(x=>x.switch_plate_id===sw.id&&(x.gang_index||1)===g)});
+  }else return '';
+  let out='';
+  strings.forEach(st=>{
+    if(!st.lights.length)return;
+    const path=chainOrder(st.sw,st.lights);
+    let d=`M ${st.sw.x} ${st.sw.y}`;
+    path.forEach(p=>{d+=` L ${p.x} ${p.y}`;});
+    out+=`<path d="${d}" fill="none"/>`;
+    out+=`<circle cx="${st.sw.x}" cy="${st.sw.y}" r="${5*K()}" fill="none" stroke="#378ADD" stroke-width="${SW(1.4)}" stroke-dasharray="none"/>`;
+    path.forEach(p=>{out+=`<circle cx="${p.x}" cy="${p.y}" r="${3*K()}" fill="#378ADD" stroke="none"/>`;});
+  });
+  return out;
 }
 function handlesMarkup(){
   const id=S.plan.selectedId;if(!id)return '';
