@@ -1352,7 +1352,7 @@ function onSvgPointerMove(e){
   if(_g&&_g.type==='tap'){const dx=e.clientX-_g.sx,dy=e.clientY-_g.sy;if(Math.abs(dx)>6||Math.abs(dy)>6){_g.type='pan';_g.moved=true;}}
   if(_g&&_g.type==='pan'){const r=_g.rect;const dx=e.clientX-_g.sx,dy=e.clientY-_g.sy;S.plan.view={x:_g.sv.x-dx*(_g.sv.w/r.width),y:_g.sv.y-dy*(_g.sv.h/r.height),w:_g.sv.w,h:_g.sv.h};clampView();applyView();return;}
   if(e.pointerType==='mouse'&&S.plan.editMode&&S.plan.tool==='walls'&&S.plan.wallDraft&&_g&&_g.type==='tap'){
-    const pt=clientToPlan(e.clientX,e.clientY);const sn=snapWallPoint(pt.x,pt.y);S.plan.wallDraft.x2=sn.x;S.plan.wallDraft.y2=sn.y;renderWallsLayer();
+    const pt=clientToPlan(e.clientX,e.clientY);const sn=wallEndPoint(pt.x,pt.y);S.plan.wallDraft.x2=sn.x;S.plan.wallDraft.y2=sn.y;renderWallsLayer();
   }
 }
 function onSvgPointerUp(e){
@@ -1444,6 +1444,8 @@ function applySnaps(it,nx,ny){
   return {x:nx,y:ny,rotation:null};
 }
 function snapWallPoint(x,y){const thr=14*K();let best=null;S.plan.walls.forEach(w=>{[[w.x1,w.y1],[w.x2,w.y2]].forEach(([px,py])=>{const d=dist(x,y,px,py);if(d<thr&&(!best||d<best.d))best={x:px,y:py,d};});});return best||{x,y};}
+function orthoSnap(x1,y1,x,y){const dx=x-x1,dy=y-y1;if(Math.abs(dx)<1e-6&&Math.abs(dy)<1e-6)return{x,y};const a=Math.round(Math.atan2(dy,dx)/(Math.PI/4))*(Math.PI/4);const ux=Math.cos(a),uy=Math.sin(a);const proj=dx*ux+dy*uy;return{x:x1+ux*proj,y:y1+uy*proj};}
+function wallEndPoint(x,y){const ep=snapWallPoint(x,y);const corner=(ep.x!==x||ep.y!==y);if(S.plan.wallDraft&&!corner)return orthoSnap(S.plan.wallDraft.x1,S.plan.wallDraft.y1,x,y);return ep;}
 function maybeSnapToWall(it){if(LINEAR.has(it.icon_type))return;const wsp=wallSnapPos(it,it.x,it.y);if(wsp){it.x=Math.round(wsp.x);it.y=Math.round(wsp.y);it.rotation=Math.round(wsp.rotation);persistItem(it.id,{x:it.x,y:it.y,rotation:it.rotation});}}
 
 // ── CRUD ──
@@ -1517,9 +1519,8 @@ function startWalls(){S.plan.tool='walls';S.plan.selectedId=null;S.plan.placingT
 function endWalls(){S.plan.tool='select';S.plan.wallDraft=null;renderPlanActions();renderPlan();}
 function undoWall(){if(S.plan.wallDraft){S.plan.wallDraft=null;}else{S.plan.walls.pop();persistWalls();}renderPlan();}
 function handleWallClick(x,y){
-  const sn=snapWallPoint(x,y);
-  if(!S.plan.wallDraft){S.plan.wallDraft={x1:Math.round(sn.x),y1:Math.round(sn.y),x2:Math.round(sn.x),y2:Math.round(sn.y)};renderWallsLayer();}
-  else{const d=S.plan.wallDraft;const seg={x1:d.x1,y1:d.y1,x2:Math.round(sn.x),y2:Math.round(sn.y)};if(dist(seg.x1,seg.y1,seg.x2,seg.y2)>3){S.plan.walls.push(seg);persistWalls();}S.plan.wallDraft={x1:seg.x2,y1:seg.y2,x2:seg.x2,y2:seg.y2};renderWallsLayer();}
+  if(!S.plan.wallDraft){const sn=snapWallPoint(x,y);S.plan.wallDraft={x1:Math.round(sn.x),y1:Math.round(sn.y),x2:Math.round(sn.x),y2:Math.round(sn.y)};renderWallsLayer();}
+  else{const p=wallEndPoint(x,y);const d=S.plan.wallDraft;const seg={x1:d.x1,y1:d.y1,x2:Math.round(p.x),y2:Math.round(p.y)};if(dist(seg.x1,seg.y1,seg.x2,seg.y2)>3){S.plan.walls.push(seg);persistWalls();}S.plan.wallDraft={x1:seg.x2,y1:seg.y2,x2:seg.x2,y2:seg.y2};renderWallsLayer();}
 }
 async function persistWalls(){try{await sb(`floor_plans?id=eq.${S.plan.current.id}`,{method:'PATCH',body:JSON.stringify({walls:S.plan.walls})});S.plan.current.walls=S.plan.walls.slice();}catch(e){showToast('Wall save failed');}}
 
@@ -1540,7 +1541,7 @@ function renderPlanActions(){
     if(pl.selectedId){const it=itemById(pl.selectedId);const circ=it&&it.circuit_id?S.circuits.find(c=>c.id===it.circuit_id):null;const nm=it?(ICON_META[it.icon_type]?ICON_META[it.icon_type].name:it.icon_type):'';bar.innerHTML=`<div class="plan-hint">${esc(nm)}${circ?' · Circuit '+esc(circ.number):''}${it&&it.switch_plate_id?' · switch loop shown':''}</div>`+(circ?`<button class="add-btn" onclick="selCircuit('${circ.id}')">Open circuit</button>`:'')+`<button class="ghost-btn" onclick="deselect()">Hide</button>`;return;}
     bar.innerHTML=`<div class="plan-hint">${pl.items.length} fitting${pl.items.length===1?'':'s'} placed${pl.items.length?' · tap a fitting for its circuit & switch loop · pinch to zoom':''}</div><button class="add-btn" onclick="enterPlanEdit()">✏ Edit plan</button>`;return;
   }
-  if(pl.tool==='walls'){bar.innerHTML=`<div class="plan-hint">Tracing walls — tap points to lay segments. Fittings snap &amp; orient to these.</div><button class="icon-tool" onclick="undoWall()">↶ Undo</button><button class="add-btn" onclick="endWalls()">Done walls</button>`;return;}
+  if(pl.tool==='walls'){bar.innerHTML=`<div class="plan-hint">Tracing walls — tap corners; lines auto-straighten to right angles. Tap an existing corner to close. Fittings snap to these.</div><button class="icon-tool" onclick="undoWall()">↶ Undo</button><button class="add-btn" onclick="endWalls()">Done walls</button>`;return;}
   if(pl.placingType){const m=ICON_META[pl.placingType];const n=pl.placeCount||0;bar.innerHTML=`<div class="plan-hint">Placing ${esc(m?m.name:pl.placingType)} — tap to drop, keep tapping for more${n?(' · '+n+' placed'):''}.</div><button class="icon-tool" onclick="openPalette()">Change</button><button class="ghost-btn" onclick="cancelPlacing()">Done</button>`;return;}
   if(pl.selectedId){
     const it=itemById(pl.selectedId);const circ=it&&it.circuit_id?S.circuits.find(c=>c.id===it.circuit_id):null;
