@@ -1086,7 +1086,8 @@ const ICON_META = {
   ahu: {name:'Commercial AHU',       abbr:'AHU',  cat:'hv'},
   gpo1:{name:'Single GPO',           abbr:'GPO',  cat:'pw'},
   gpo2:{name:'Double GPO',           abbr:'2GPO', cat:'pw'},
-  gpo15:{name:'15A GPO',             abbr:'15A',  cat:'pw'}
+  gpo15:{name:'15A GPO',             abbr:'15A',  cat:'pw'},
+  db:  {name:'Distribution board',    abbr:'DB',   cat:'pw'}
 };
 const A='#f0a500', Ad='#b87c00';
 const G='#1D9E75', Go='#085041';
@@ -1120,7 +1121,8 @@ duct:`<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect x="10" y
 ahu:`<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="14" width="32" height="20" rx="2.5" fill="none" stroke="${C}" stroke-width="2"/><circle cx="18" cy="24" r="6" fill="none" stroke="${C}" stroke-width="1.6"/><path d="M18 24l4-3M18 24l-1 5M18 24l-3-3" stroke="${C}" stroke-width="1.3" stroke-linecap="round"/><text x="32" y="27" font-size="7" fill="${C}" text-anchor="middle" font-family="sans-serif" font-weight="700">AHU</text></svg>`,
 gpo1:`<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="13" width="20" height="22" rx="3" fill="none" stroke="${A}" stroke-width="2"/><rect x="19" y="16" width="10" height="3.5" rx="1.5" fill="${A}" opacity="0.5"/><line x1="20" y1="27" x2="23" y2="24" stroke="${A}" stroke-width="2.2" stroke-linecap="round"/><line x1="28" y1="27" x2="25" y2="24" stroke="${A}" stroke-width="2.2" stroke-linecap="round"/><line x1="24" y1="28" x2="24" y2="31" stroke="${A}" stroke-width="2.2" stroke-linecap="round"/></svg>`,
 gpo2:`<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="14" width="38" height="20" rx="3" fill="none" stroke="${A}" stroke-width="2"/><line x1="24" y1="17" x2="24" y2="31" stroke="${A}" stroke-width="1" opacity="0.4"/><g stroke="${A}" stroke-width="2.1" stroke-linecap="round"><line x1="12.5" y1="27" x2="15" y2="24.5"/><line x1="19.5" y1="27" x2="17" y2="24.5"/><line x1="16" y1="28" x2="16" y2="31"/><line x1="28.5" y1="27" x2="31" y2="24.5"/><line x1="35.5" y1="27" x2="33" y2="24.5"/><line x1="32" y1="28" x2="32" y2="31"/></g></svg>`,
-gpo15:`<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect x="13" y="11" width="22" height="22" rx="3" fill="none" stroke="${A}" stroke-width="2"/><rect x="18" y="14" width="12" height="3.5" rx="1.5" fill="${A}" opacity="0.5"/><line x1="19" y1="25" x2="22.5" y2="21.5" stroke="${A}" stroke-width="2.4" stroke-linecap="round"/><line x1="29" y1="25" x2="25.5" y2="21.5" stroke="${A}" stroke-width="2.4" stroke-linecap="round"/><line x1="24" y1="25.5" x2="24" y2="31" stroke="${A}" stroke-width="3.4" stroke-linecap="round"/><text x="24" y="44" font-size="8" fill="${A}" text-anchor="middle" font-family="sans-serif" font-weight="700">15A</text></svg>`
+gpo15:`<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect x="13" y="11" width="22" height="22" rx="3" fill="none" stroke="${A}" stroke-width="2"/><rect x="18" y="14" width="12" height="3.5" rx="1.5" fill="${A}" opacity="0.5"/><line x1="19" y1="25" x2="22.5" y2="21.5" stroke="${A}" stroke-width="2.4" stroke-linecap="round"/><line x1="29" y1="25" x2="25.5" y2="21.5" stroke="${A}" stroke-width="2.4" stroke-linecap="round"/><line x1="24" y1="25.5" x2="24" y2="31" stroke="${A}" stroke-width="3.4" stroke-linecap="round"/><text x="24" y="44" font-size="8" fill="${A}" text-anchor="middle" font-family="sans-serif" font-weight="700">15A</text></svg>`,
+db:`<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect x="11" y="7" width="26" height="34" rx="3" fill="${A}" opacity="0.12" stroke="${A}" stroke-width="2"/><rect x="15" y="11" width="18" height="5" rx="1.5" fill="${A}" opacity="0.65"/><g stroke="${A}" stroke-width="2" stroke-linecap="round"><line x1="16" y1="22" x2="22" y2="22"/><line x1="26" y1="22" x2="32" y2="22"/><line x1="16" y1="27" x2="22" y2="27"/><line x1="26" y1="27" x2="32" y2="27"/></g><text x="24" y="38" font-size="7.5" fill="${A}" text-anchor="middle" font-family="sans-serif" font-weight="700">DB</text></svg>`
 };
 for (let g = 1; g <= 6; g++) {
   ICONS['sw'+g] =
@@ -1139,6 +1141,7 @@ const DEFAULT_LEN={b6:90,b12:150,wp6:90,wp12:150,ls:160};
 const SVGNS='http://www.w3.org/2000/svg';
 const iconInner=k=>(ICONS[k]||'').replace(/^\s*<svg[^>]*>/i,'').replace(/<\/svg>\s*$/i,'');
 function isSwitchType(t){return /^sw[1-6]$/.test(t)||t==='sw2w'||t==='pir'||t==='pe';}
+function isGpoType(t){return t==='gpo1'||t==='gpo2'||t==='gpo15';}
 function gangCount(t){const m=/^sw([1-6])$/.exec(t);return m?+m[1]:(t==='sw2w'?2:1);}
 function planDims(){const p=S.plan.current||{};return{w:+p.width||800,h:+p.height||600};}
 function K(){return planDims().w/800;}
@@ -1235,31 +1238,43 @@ function chainOrder(sw,lights){
   while(remaining.length){let bi=0,bd=Infinity;remaining.forEach((l,i)=>{const dd=dist(cx,cy,l.x,l.y);if(dd<bd){bd=dd;bi=i;}});const nx=remaining.splice(bi,1)[0];order.push(nx);cx=nx.x;cy=nx.y;}
   return order;
 }
+function runPolyline(anchor,items){
+  if(anchor)return [anchor].concat(chainOrder(anchor,items));
+  const seed=items.slice().sort((a,b)=>(a.x-b.x)||(a.y-b.y))[0];
+  return [seed].concat(chainOrder(seed,items.filter(z=>z!==seed)));
+}
 function loopMarkup(){
-  // reveal the dotted switching run for the focused fitting (or every run on a focused switch).
-  // multiple fittings on one switch+gang chain as a single string: switch -> nearest -> next -> ...
+  // dotted runs: switch -> lights (blue) and GPO power-circuit runs (amber). Revealed from any member or the anchor.
   const id=S.plan.hoverId||S.plan.selectedId;
   if(!id)return '';
   const it=itemById(id);if(!it)return '';
-  const strings=[];
+  const SWCOL='#378ADD',PWCOL='#c98a00',strings=[];
   if(isSwitchType(it.icon_type)){
     const byGang={};
     S.plan.items.forEach(x=>{if(x.switch_plate_id===it.id){const g=x.gang_index||1;(byGang[g]=byGang[g]||[]).push(x);}});
-    Object.keys(byGang).forEach(g=>strings.push({sw:it,lights:byGang[g]}));
+    Object.keys(byGang).forEach(g=>strings.push({anchor:it,items:byGang[g],color:SWCOL}));
   }else if(it.switch_plate_id){
-    const sw=itemById(it.switch_plate_id);if(!sw)return '';
-    const g=it.gang_index||1;
-    strings.push({sw,lights:S.plan.items.filter(x=>x.switch_plate_id===sw.id&&(x.gang_index||1)===g)});
-  }else return '';
+    const sw=itemById(it.switch_plate_id);if(sw){const g=it.gang_index||1;strings.push({anchor:sw,items:S.plan.items.filter(x=>x.switch_plate_id===sw.id&&(x.gang_index||1)===g),color:SWCOL});}
+  }else if(it.icon_type==='db'){
+    const byC={};
+    S.plan.items.forEach(x=>{if(isGpoType(x.icon_type)&&x.circuit_id){(byC[x.circuit_id]=byC[x.circuit_id]||[]).push(x);}});
+    Object.keys(byC).forEach(c=>strings.push({anchor:it,items:byC[c],color:PWCOL}));
+  }else if(isGpoType(it.icon_type)&&it.circuit_id){
+    const run=S.plan.items.filter(x=>isGpoType(x.icon_type)&&x.circuit_id===it.circuit_id);
+    const db=S.plan.items.find(x=>x.icon_type==='db');
+    strings.push({anchor:db||null,items:run,color:PWCOL});
+  }
+  if(!strings.length)return '';
   let out='';
   strings.forEach(st=>{
-    if(!st.lights.length)return;
-    const path=chainOrder(st.sw,st.lights);
-    let d=`M ${st.sw.x} ${st.sw.y}`;
-    path.forEach(p=>{d+=` L ${p.x} ${p.y}`;});
-    out+=`<path d="${d}" fill="none"/>`;
-    out+=`<circle cx="${st.sw.x}" cy="${st.sw.y}" r="${5*K()}" fill="none" stroke="#378ADD" stroke-width="${SW(1.4)}" stroke-dasharray="none"/>`;
-    path.forEach(p=>{out+=`<circle cx="${p.x}" cy="${p.y}" r="${3*K()}" fill="#378ADD" stroke="none"/>`;});
+    if(!st.items.length)return;
+    const pts=runPolyline(st.anchor,st.items);
+    if(pts.length<2)return;
+    let d='M '+pts[0].x+' '+pts[0].y;
+    for(let q=1;q<pts.length;q++)d+=' L '+pts[q].x+' '+pts[q].y;
+    out+=`<path d="${d}" fill="none" stroke="${st.color}"/>`;
+    if(st.anchor)out+=`<circle cx="${st.anchor.x}" cy="${st.anchor.y}" r="${5*K()}" fill="none" stroke="${st.color}" stroke-width="${SW(1.4)}" stroke-dasharray="none"/>`;
+    st.items.forEach(p=>{out+=`<circle cx="${p.x}" cy="${p.y}" r="${3*K()}" fill="${st.color}" stroke="none"/>`;});
   });
   return out;
 }
@@ -1454,6 +1469,7 @@ async function addPlacement(type,x,y){
   const data={floor_plan_id:S.plan.current.id,icon_type:type,x:Math.round(x),y:Math.round(y),rotation:0,scale:1};
   if(LINEAR.has(type))data.length=Math.round(DEFAULT_LEN[type]*k);
   if(/^sw[1-6]$/.test(type)||type==='sw2w')data.gang_number=gangCount(type);
+  if(S.plan.placingCircuit)data.circuit_id=S.plan.placingCircuit;
   try{
     const res=await sb('circuit_icons',{method:'POST',body:JSON.stringify(data)});
     const ni=Array.isArray(res)?res[0]:res;
@@ -1557,7 +1573,7 @@ function renderPlanActions(){
     else{bar.innerHTML=`<div class="plan-hint">Tracing walls — tap corners; lines auto-straighten to right angles. Tap an existing corner to close.</div><button class="icon-tool" onclick="undoWall()">↶ Undo</button><button class="icon-tool" onclick="setWallTool('erase')">🧽 Erase</button><button class="add-btn" onclick="endWalls()">Done walls</button>`;}
     return;
   }
-  if(pl.placingType){const m=ICON_META[pl.placingType];const n=pl.placeCount||0;bar.innerHTML=`<div class="plan-hint">Placing ${esc(m?m.name:pl.placingType)} — tap to drop, keep tapping for more${n?(' · '+n+' placed'):''}.</div><button class="icon-tool" onclick="openPalette()">Change</button><button class="ghost-btn" onclick="cancelPlacing()">Done</button>`;return;}
+  if(pl.placingType){const m=ICON_META[pl.placingType];const n=pl.placeCount||0;const cc=pl.placingCircuit?S.circuits.find(c=>c.id===pl.placingCircuit):null;bar.innerHTML=`<div class="plan-hint">Placing ${esc(m?m.name:pl.placingType)}${cc?' on C'+esc(cc.number):''} — tap to drop, keep tapping for more${n?(' · '+n+' placed'):''}.</div><button class="icon-tool" onclick="openPalette()">Change</button><button class="ghost-btn" onclick="cancelPlacing()">Done</button>`;return;}
   if(pl.selectedId){
     const it=itemById(pl.selectedId);const circ=it&&it.circuit_id?S.circuits.find(c=>c.id===it.circuit_id):null;
     bar.innerHTML=`<button class="icon-tool" onclick="openLinkCircuit()">🔌 ${circ?'C'+esc(circ.number):'Circuit'}</button>`+
@@ -1571,9 +1587,9 @@ function renderPlanActions(){
   bar.innerHTML=`<button class="add-btn" onclick="openPalette()">＋ Add fitting</button><button class="icon-tool" onclick="startWalls()">🧱 Walls</button><button class="ghost-btn" style="margin-left:auto" onclick="exitPlanEdit()">Done</button>`;
 }
 function enterPlanEdit(){requirePin(()=>{S.plan.editMode=true;renderPlanActions();renderPlan();showToast('Editing — tap ＋ Add fitting');});}
-function exitPlanEdit(){S.plan.editMode=false;S.plan.selectedId=null;S.plan.placingType=null;S.plan.placeCount=0;S.plan.tool='select';S.plan.wallDraft=null;renderPlanActions();renderPlan();}
+function exitPlanEdit(){S.plan.editMode=false;S.plan.selectedId=null;S.plan.placingType=null;S.plan.placeCount=0;S.plan.placingCircuit=null;S.plan.tool='select';S.plan.wallDraft=null;renderPlanActions();renderPlan();}
 function deselect(){S.plan.selectedId=null;S.plan.hoverId=null;renderPlan();renderPlanActions();}
-function cancelPlacing(){S.plan.placingType=null;S.plan.placeCount=0;renderPlanActions();}
+function cancelPlacing(){S.plan.placingType=null;S.plan.placeCount=0;S.plan.placingCircuit=null;renderPlanActions();}
 
 // ── Modals ──
 function showModal(body){closeAnyModal();const o=document.createElement('div');o.className='modal-overlay';o.onclick=e=>{if(e.target===o)o.remove();};o.innerHTML=`<div class="modal-box">${body}</div>`;document.getElementById('app').appendChild(o);return o;}
@@ -1596,7 +1612,15 @@ function openPalette(){
   body+=`<button class="cancel-btn" onclick="closeAnyModal()">Close</button>`;
   showModal(body);
 }
-function pickIcon(k){closeAnyModal();S.plan.placingType=k;S.plan.placeCount=0;S.plan.tool='select';renderPlanActions();showToast('Tap the plan to place');}
+function pickIcon(k){closeAnyModal();if(isGpoType(k)){openGpoCircuitPicker(k);return;}S.plan.placingType=k;S.plan.placingCircuit=null;S.plan.placeCount=0;S.plan.tool='select';renderPlanActions();showToast('Tap the plan to place');}
+function openGpoCircuitPicker(k){
+  if(!S.circuits.length){showToast('Add circuits to this board first');return;}
+  let body=`<div class="modal-title">${esc(ICON_META[k]?ICON_META[k].name:k)} — which circuit?</div><p style="font-size:12px;color:#888;margin-bottom:10px;line-height:1.5">Pick the circuit these outlets are on. Each one you place links to it and joins the dotted circuit run.</p><div style="max-height:50vh;overflow:auto">`;
+  S.circuits.slice().sort((a,b)=>(parseInt(a.number)||0)-(parseInt(b.number)||0)).forEach(c=>{body+=`<div onclick="startGpoPlacement('${k}','${c.id}')" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid #eee;border-radius:8px;margin-bottom:6px;cursor:pointer"><div style="width:30px;height:30px;border-radius:7px;background:#0d1b2e;color:#f0a500;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${esc(c.number)}</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${esc(c.label||'Unlabelled')}</div><div style="font-size:11px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.device_type||'—')}</div></div></div>`;});
+  body+=`</div><button class="cancel-btn" onclick="closeAnyModal()">Cancel</button>`;
+  showModal(body);
+}
+function startGpoPlacement(k,cid){closeAnyModal();S.plan.placingType=k;S.plan.placingCircuit=cid;S.plan.placeCount=0;S.plan.tool='select';renderPlanActions();const c=S.circuits.find(x=>x.id===cid);showToast('Placing on C'+(c?c.number:'')+' — tap to drop');}
 function openLinkCircuit(){
   const it=itemById(S.plan.selectedId);if(!it)return;
   let body=`<div class="modal-title">Link to a circuit</div><p style="font-size:12px;color:#888;margin-bottom:10px;line-height:1.5">Links this fitting to a circuit — used by the circuit filter and by tap-to-open in view mode.</p><div style="max-height:50vh;overflow:auto">`;
