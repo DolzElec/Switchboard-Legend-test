@@ -5,7 +5,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <title>Switchboard Legend — DolzElec</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0d1b2e">
@@ -187,7 +187,7 @@ function getSlugFromURL(){
 function cacheSet(k,d){try{localStorage.setItem('sbl_cache_'+k,JSON.stringify(d));}catch(e){}}
 function cacheGet(k){try{const v=localStorage.getItem('sbl_cache_'+k);return v?JSON.parse(v):null;}catch(e){return null;}}
 let _offlineBar=null;
-function ensureOfflineBar(){if(_offlineBar)return _offlineBar;const b=document.createElement('div');b.id='offline-bar';b.style.cssText='display:none;position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:1100;background:#f0a500;color:#0d1b2e;font-family:system-ui,-apple-system,sans-serif;font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;box-shadow:0 3px 12px rgba(0,0,0,.25);white-space:nowrap';b.textContent='\u26a1 Offline \u2014 showing last saved data';(document.body||document.documentElement).appendChild(b);_offlineBar=b;return b;}
+function ensureOfflineBar(){if(_offlineBar)return _offlineBar;const b=document.createElement('div');b.id='offline-bar';b.style.cssText='display:none;position:fixed;top:calc(env(safe-area-inset-top, 0px) + 8px);left:50%;transform:translateX(-50%);z-index:1100;background:#f0a500;color:#0d1b2e;font-family:system-ui,-apple-system,sans-serif;font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;box-shadow:0 3px 12px rgba(0,0,0,.25);white-space:nowrap';b.textContent='\u26a1 Offline \u2014 showing last saved data';(document.body||document.documentElement).appendChild(b);_offlineBar=b;return b;}
 function showOffline(){ensureOfflineBar().style.display='block';}
 function hideOffline(){if(_offlineBar)_offlineBar.style.display='none';}
 window.addEventListener('offline',showOffline);
@@ -1736,12 +1736,14 @@ init();
 /* PWA: service worker + install prompt (V3.18) */
 (function(){
   if('serviceWorker' in navigator){
-    window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(e){console.warn('SW registration failed',e);});});
+    var hadController=!!navigator.serviceWorker.controller, refreshing=false;
+    navigator.serviceWorker.addEventListener('controllerchange',function(){if(hadController&&!refreshing){refreshing=true;window.location.reload();}});
+    window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').then(function(reg){if(reg&&reg.update)reg.update();}).catch(function(e){console.warn('SW registration failed',e);});});
   }
   var deferred=null;
   var bar=document.createElement('div');
   bar.id='pwa-install';
-  bar.style.cssText='display:none;position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:1000;background:#0d1b2e;color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:9px 10px 9px 14px;align-items:center;gap:10px;box-shadow:0 6px 24px rgba(0,0,0,.35);font-family:system-ui,-apple-system,sans-serif;max-width:92vw';
+  bar.style.cssText='display:none;position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom, 0px) + 14px);transform:translateX(-50%);z-index:1000;background:#0d1b2e;color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:9px 10px 9px 14px;align-items:center;gap:10px;box-shadow:0 6px 24px rgba(0,0,0,.35);font-family:system-ui,-apple-system,sans-serif;max-width:92vw';
   function show(){bar.style.display='flex';}
   function hide(){bar.style.display='none';}
   function mount(){if(!bar.parentNode&&document.body)document.body.appendChild(bar);}
