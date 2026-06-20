@@ -183,31 +183,44 @@ function getSlugFromURL(){
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
+// ── Offline cache + banner (V3.19) ──
+function cacheSet(k,d){try{localStorage.setItem('sbl_cache_'+k,JSON.stringify(d));}catch(e){}}
+function cacheGet(k){try{const v=localStorage.getItem('sbl_cache_'+k);return v?JSON.parse(v):null;}catch(e){return null;}}
+let _offlineBar=null;
+function ensureOfflineBar(){if(_offlineBar)return _offlineBar;const b=document.createElement('div');b.id='offline-bar';b.style.cssText='display:none;position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:1100;background:#f0a500;color:#0d1b2e;font-family:system-ui,-apple-system,sans-serif;font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;box-shadow:0 3px 12px rgba(0,0,0,.25);white-space:nowrap';b.textContent='\u26a1 Offline \u2014 showing last saved data';(document.body||document.documentElement).appendChild(b);_offlineBar=b;return b;}
+function showOffline(){ensureOfflineBar().style.display='block';}
+function hideOffline(){if(_offlineBar)_offlineBar.style.display='none';}
+window.addEventListener('offline',showOffline);
+window.addEventListener('online',hideOffline);
 async function init(){
   set({view:'loading'});
+  let sites,boards,users;
   try{
-    const[sites,boards,users]=await Promise.all([
+    [sites,boards,users]=await Promise.all([
       sb('sites?select=*'),
       sb('boards?select=*'),
       sb('users?select=id,name,pin_hash,role,site_id')
     ]);
-    S.sites=sites||[];S.boards=boards||[];S.users=users||[];
-
-    // QR code direct routing
-    const slug=getSlugFromURL();
-    if(slug){
-      const board=S.boards.find(b=>b.qr_slug===slug);
-      if(board){
-        const site=S.sites.find(s=>s.id===board.site_id)||null;
-        S.selectedBoard=board;S.selectedSite=site;
-        await loadBoard(board,false);
-        return;
-      }
-    }
-    set({view:'sites'});
+    cacheSet('home',{sites,boards,users});hideOffline();
   }catch(e){
-    set({view:'error',error:'Could not connect to database.\n\n'+e.message});
+    const c=cacheGet('home');
+    if(!c){set({view:'error',error:'Could not connect to database.\n\n'+e.message});return;}
+    sites=c.sites;boards=c.boards;users=c.users;showOffline();
   }
+  S.sites=sites||[];S.boards=boards||[];S.users=users||[];
+  // QR code direct routing
+  const slug=getSlugFromURL();
+  if(slug){
+    const board=S.boards.find(b=>b.qr_slug===slug);
+    if(board){
+      const site=S.sites.find(s=>s.id===board.site_id)||null;
+      S.selectedBoard=board;S.selectedSite=site;
+      await loadBoard(board,false);
+      return;
+    }
+  }
+  set({view:'sites'});
+  if(!navigator.onLine)showOffline();
 }
 
 async function loadBoard(board,updateState=true){
@@ -218,8 +231,11 @@ async function loadBoard(board,updateState=true){
       sb(`circuits?select=*&board_id=eq.${board.id}&archived_at=is.null&order=number.asc`),
       sb(`rcd_tests?select=*&order=test_date.desc`)
     ]);
+    cacheSet('board_'+board.id,{circuits,tests});hideOffline();
     set({circuits:circuits||[],tests:tests||[],view:'board',tab:'board'});
   }catch(e){
+    const c=cacheGet('board_'+board.id);
+    if(c){showOffline();set({circuits:c.circuits||[],tests:c.tests||[],view:'board',tab:'board'});return;}
     set({view:'error',error:'Failed to load board: '+e.message});
   }
 }
