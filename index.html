@@ -1137,6 +1137,7 @@ return {ICON_META, ICONS};
 const CAT_NAME={lt:'Lighting',em:'Emergency · AS/NZS 2293',sw:'Switching & control',hv:'HVAC',pw:'Power',brd:'Board'};
 const CAT_ORDER=['lt','em','sw','hv','pw','brd'];
 const LINEAR=new Set(['b6','b12','wp6','wp12','ls']);
+const BATTEN=new Set(['b6','b12','wp6','wp12']);
 const DEFAULT_LEN={b6:90,b12:150,wp6:90,wp12:150,ls:160};
 const SVGNS='http://www.w3.org/2000/svg';
 const iconInner=k=>(ICONS[k]||'').replace(/^\s*<svg[^>]*>/i,'').replace(/<\/svg>\s*$/i,'');
@@ -1416,15 +1417,24 @@ function onHandlePointerDown(e,name){
       const k=K();const rot=(it.rotation||0)*Math.PI/180;const dx=Math.cos(rot),dy=Math.sin(rot);const hw=(+it.length||DEFAULT_LEN[it.icon_type]*k)/2;
       const e1={x:it.x-dx*hw,y:it.y-dy*hw},e2={x:it.x+dx*hw,y:it.y+dy*hw};
       const fixed=name==='end1'?e2:e1;
-      const ndx=p.x-fixed.x,ndy=p.y-fixed.y;const L=Math.max(20*k,Math.hypot(ndx,ndy));
-      it.length=Math.round(L);it.rotation=Math.round(Math.atan2(ndy,ndx)*180/Math.PI);
-      it.x=Math.round((fixed.x+p.x)/2);it.y=Math.round((fixed.y+p.y)/2);
+      if(BATTEN.has(it.icon_type)){
+        const sdeg=Math.round(Math.atan2(p.y-fixed.y,p.x-fixed.x)/(Math.PI/2))*90;
+        const sr=sdeg*Math.PI/180,ux=Math.cos(sr),uy=Math.sin(sr);
+        const L=Math.max(20*k,(p.x-fixed.x)*ux+(p.y-fixed.y)*uy);
+        it.length=Math.round(L);it.rotation=((sdeg%360)+360)%360;
+        it.x=Math.round(fixed.x+ux*L/2);it.y=Math.round(fixed.y+uy*L/2);
+      }else{
+        const ndx=p.x-fixed.x,ndy=p.y-fixed.y;const L=Math.max(20*k,Math.hypot(ndx,ndy));
+        it.length=Math.round(L);it.rotation=Math.round(Math.atan2(ndy,ndx)*180/Math.PI);
+        it.x=Math.round((fixed.x+p.x)/2);it.y=Math.round((fixed.y+p.y)/2);
+      }
       renderItemsLayer();
     }
   };
   const up=()=>{
     document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);
     persistItem(it.id,{rotation:it.rotation,scale:it.scale,length:it.length,x:Math.round(it.x),y:Math.round(it.y)});
+    if(BATTEN.has(it.icon_type))propagateBattenLength(it);
     renderPlan();renderPlanActions();
   };
   document.addEventListener('pointermove',move);document.addEventListener('pointerup',up);
@@ -1467,7 +1477,7 @@ function maybeSnapToWall(it){if(LINEAR.has(it.icon_type))return;const wsp=wallSn
 async function addPlacement(type,x,y){
   const k=K();
   const data={floor_plan_id:S.plan.current.id,icon_type:type,x:Math.round(x),y:Math.round(y),rotation:0,scale:1};
-  if(LINEAR.has(type))data.length=Math.round(DEFAULT_LEN[type]*k);
+  if(LINEAR.has(type)){const ex=BATTEN.has(type)?S.plan.items.filter(x=>x.icon_type===type&&x.length).pop():null;data.length=ex?ex.length:Math.round(DEFAULT_LEN[type]*k);}
   if(/^sw[1-6]$/.test(type)||type==='sw2w')data.gang_number=gangCount(type);
   if(S.plan.placingCircuit)data.circuit_id=S.plan.placingCircuit;
   try{
@@ -1480,6 +1490,7 @@ async function addPlacement(type,x,y){
   }catch(e){showToast('Failed: '+e.message);}
 }
 async function persistItem(id,patch){const it=itemById(id);if(it)Object.assign(it,patch);try{await sb(`circuit_icons?id=eq.${id}`,{method:'PATCH',body:JSON.stringify(patch)});}catch(e){showToast('Save failed');}}
+function propagateBattenLength(it){S.plan.items.forEach(o=>{if(o.id!==it.id&&o.icon_type===it.icon_type&&o.length!==it.length)persistItem(o.id,{length:it.length});});}
 async function deleteSelected(){
   const id=S.plan.selectedId;if(!id)return;
   try{await sb(`circuit_icons?id=eq.${id}`,{method:'DELETE'});S.plan.items=S.plan.items.filter(x=>x.id!==id);S.plan.selectedId=null;renderPlan();renderPlanActions();showToast('✓ Deleted');}
