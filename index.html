@@ -1143,6 +1143,8 @@ const SVGNS='http://www.w3.org/2000/svg';
 const iconInner=k=>(ICONS[k]||'').replace(/^\s*<svg[^>]*>/i,'').replace(/<\/svg>\s*$/i,'');
 function isSwitchType(t){return /^sw[1-6]$/.test(t)||t==='sw2w'||t==='pir'||t==='pe';}
 function isGpoType(t){return t==='gpo1'||t==='gpo2'||t==='gpo15';}
+const EMERG=new Set(['em','ex','efl']);
+function findEmergencyCircuit(){return S.circuits.find(c=>(c.circuit_type||'').toLowerCase()==='emergency')||S.circuits.find(c=>/emerg/i.test(c.label||''))||null;}
 function gangCount(t){const m=/^sw([1-6])$/.exec(t);return m?+m[1]:(t==='sw2w'?2:1);}
 function planDims(){const p=S.plan.current||{};return{w:+p.width||800,h:+p.height||600};}
 function clampToPlan(it){const {w,h}=planDims();const m=Math.min(14*K(),w/2,h/2);it.x=Math.max(m,Math.min(w-m,it.x));it.y=Math.max(m,Math.min(h-m,it.y));}
@@ -1627,7 +1629,7 @@ function openPalette(){
   body+=`<button class="cancel-btn" onclick="closeAnyModal()">Close</button>`;
   showModal(body);
 }
-function pickIcon(k){closeAnyModal();if(isGpoType(k)){openGpoCircuitPicker(k);return;}S.plan.placingType=k;S.plan.placingCircuit=null;S.plan.placeCount=0;S.plan.tool='select';renderPlanActions();showToast('Tap the plan to place');}
+function pickIcon(k){closeAnyModal();if(isGpoType(k)){openGpoCircuitPicker(k);return;}if(EMERG.has(k)){const ec=findEmergencyCircuit();if(ec){startGpoPlacement(k,ec.id);return;}openGpoCircuitPicker(k);return;}S.plan.placingType=k;S.plan.placingCircuit=null;S.plan.placeCount=0;S.plan.tool='select';renderPlanActions();showToast('Tap the plan to place');}
 function openGpoCircuitPicker(k){
   if(!S.circuits.length){showToast('Add circuits to this board first');return;}
   let body=`<div class="modal-title">${esc(ICON_META[k]?ICON_META[k].name:k)} — which circuit?</div><p style="font-size:12px;color:#888;margin-bottom:10px;line-height:1.5">Pick the circuit these outlets are on. Each one you place links to it and joins the dotted circuit run.</p><div style="max-height:50vh;overflow:auto">`;
