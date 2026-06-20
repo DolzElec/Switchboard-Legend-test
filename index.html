@@ -1145,6 +1145,7 @@ function isSwitchType(t){return /^sw[1-6]$/.test(t)||t==='sw2w'||t==='pir'||t===
 function isGpoType(t){return t==='gpo1'||t==='gpo2'||t==='gpo15';}
 function gangCount(t){const m=/^sw([1-6])$/.exec(t);return m?+m[1]:(t==='sw2w'?2:1);}
 function planDims(){const p=S.plan.current||{};return{w:+p.width||800,h:+p.height||600};}
+function clampToPlan(it){const {w,h}=planDims();const m=Math.min(14*K(),w/2,h/2);it.x=Math.max(m,Math.min(w-m,it.x));it.y=Math.max(m,Math.min(h-m,it.y));}
 function K(){return planDims().w/800;}
 function SW(px){return px*K();}
 function itemById(id){return S.plan.items.find(x=>x.id===id);}
@@ -1175,6 +1176,7 @@ async function loadPlanItems(){
     const items=await sb(`circuit_icons?floor_plan_id=eq.${S.plan.current.id}`);
     S.plan.items=items||[];
     S.plan.walls=Array.isArray(S.plan.current.walls)?S.plan.current.walls:[];
+    S.plan.items.forEach(it=>{const ox=it.x,oy=it.y;clampToPlan(it);if(it.x!==ox||it.y!==oy)persistItem(it.id,{x:Math.round(it.x),y:Math.round(it.y)});});
   }else{S.plan.items=[];S.plan.walls=[];}
 }
 async function switchPlan(id){
@@ -1396,6 +1398,7 @@ function onItemPointerDown(e,id){
     if(Math.abs(p.x-start.x)>2||Math.abs(p.y-start.y)>2)moved=true;
     const sn=applySnaps(it,nx,ny);
     it.x=sn.x;it.y=sn.y;if(sn.rotation!=null)it.rotation=sn.rotation;
+    clampToPlan(it);
     updateItemTransform(it);
   };
   const up=()=>{
@@ -1428,6 +1431,7 @@ function onHandlePointerDown(e,name){
         it.length=Math.round(L);it.rotation=Math.round(Math.atan2(ndy,ndx)*180/Math.PI);
         it.x=Math.round((fixed.x+p.x)/2);it.y=Math.round((fixed.y+p.y)/2);
       }
+      clampToPlan(it);
       renderItemsLayer();
     }
   };
@@ -1505,7 +1509,7 @@ function nudgeStep(){const v=S.plan.view||planView();return Math.max(1,v.w/240);
 function nudgeBtn(sx,sy){const s=nudgeStep();nudgeSelected(sx*s,sy*s);}
 function nudgeSelected(dx,dy){
   const it=itemById(S.plan.selectedId);if(!it)return;
-  it.x=Math.round(it.x+dx);it.y=Math.round(it.y+dy);
+  it.x=Math.round(it.x+dx);it.y=Math.round(it.y+dy);clampToPlan(it);
   updateItemTransform(it);
   const hg=document.getElementById('pl-handles');if(hg)hg.innerHTML=handlesMarkup();
   clearTimeout(_nudgeTimer);_nudgeTimer=setTimeout(()=>persistItem(it.id,{x:it.x,y:it.y}),350);
