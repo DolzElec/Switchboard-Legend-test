@@ -36,6 +36,11 @@ body{font-family:'Barlow Condensed','Barlow',system-ui,sans-serif;background:#e8
 .sb-col-label{font-size:9px;font-weight:700;color:#999;letter-spacing:1px;text-transform:uppercase;text-align:center;padding:4px 0 2px}
 .circuit-card{display:flex;align-items:center;gap:0;border-radius:8px;overflow:hidden;cursor:pointer;border:1px solid #e0e0e0;background:#fff;transition:all 0.1s;min-height:46px}
 .circuit-card:active{transform:scale(0.98);opacity:0.9}
+.circuit-card.isolated{border-color:#A32D2D!important;background:repeating-linear-gradient(45deg,#fff,#fff 6px,#fbe3e3 6px,#fbe3e3 12px)}
+.iso-badge{background:#A32D2D;color:#fff;font-size:8px;font-weight:800;padding:2px 5px;border-radius:9px;flex-shrink:0;margin-right:6px;letter-spacing:0.3px;white-space:nowrap}
+.iso-banner{background:#FCEBEB;border:1px solid #A32D2D;border-left-width:4px;border-radius:8px;padding:11px 13px;margin-bottom:10px}
+.iso-banner-t{font-size:13px;font-weight:800;color:#A32D2D;letter-spacing:0.3px}
+.iso-banner-s{font-size:12px;color:#7a2222;margin-top:3px;line-height:1.4}
 .phase-tab{width:10px;min-height:46px;flex-shrink:0;align-self:stretch}
 .phase-R{background:#c0392b}
 .phase-W{background:#bdc3c7}
@@ -141,14 +146,6 @@ body{font-family:'Barlow Condensed','Barlow',system-ui,sans-serif;background:#e8
 .topbar-logo-sub{font-size:10px;color:rgba(255,255,255,0.55);letter-spacing:1px;text-transform:uppercase;font-weight:500}
 .topbar-logo-title{font-size:16px;font-weight:700;color:#fff;margin-top:1px}
 .topbar-logo-loc{font-size:11px;color:rgba(255,255,255,0.7);margin-top:1px}
-.rcd-overlay{position:fixed;inset:0;z-index:1200;background:#f5f5f5;display:flex;flex-direction:column;max-width:480px;margin:0 auto}
-.rcd-head{background:#0d1b2e;color:#fff;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 12px;flex-shrink:0}
-.rcd-title{font-size:18px;font-weight:700;color:#fff}
-.rcd-sub{font-size:12px;color:rgba(255,255,255,0.7);margin-top:2px}
-.rcd-progress{height:4px;background:rgba(255,255,255,0.18);border-radius:2px;margin-top:10px;overflow:hidden}
-.rcd-progress>div{height:100%;background:#f0a500}
-.rcd-body{flex:1;overflow-y:auto;padding:12px;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 16px)}
-.rcd-overlay .pri-opt{min-height:54px;display:flex;flex-direction:column;justify-content:center;line-height:1.25}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
@@ -332,70 +329,6 @@ function statusColor(c){
   const diff=(next-new Date())/86400000;
   return diff<0?'red':diff<30?'amber':'green';
 }
-// ── Test all RCDs guided run (V3.25) ──
-let _rcdOverlay=null;
-function ensureRcdOverlay(){if(_rcdOverlay&&_rcdOverlay.parentNode)return _rcdOverlay;const d=document.createElement('div');d.className='rcd-overlay';d.id='rcd-overlay';document.body.appendChild(d);_rcdOverlay=d;return d;}
-function rcdRunCircuits(onlyDue){let list=S.circuits.filter(c=>c.has_rcd);if(onlyDue)list=list.filter(c=>{const st=statusColor(c);return st==='red'||st==='amber';});return list.slice().sort((a,b)=>(parseInt(a.number)||0)-(parseInt(b.number)||0));}
-function startRcdRun(){
-  if(!S.circuits.filter(c=>c.has_rcd).length){showToast('No RCD circuits on this board');return;}
-  requirePin(function(){S.rcdRun={phase:'scope',onlyDue:false,queue:[],idx:0,results:[],user:S.currentUser?S.currentUser.name:'—'};rcdRunRender();});
-}
-function rcdSetScope(onlyDue){if(S.rcdRun){S.rcdRun.onlyDue=onlyDue;rcdRunRender();}}
-function rcdStartRun(){const r=S.rcdRun;if(!r)return;r.queue=rcdRunCircuits(r.onlyDue);if(!r.queue.length){showToast('Nothing to test');return;}r.phase='step';r.idx=0;r.results=[];window._rrResult='pass';rcdRunRender();}
-function rcdSetResult(res){window._rrResult=res;['pass','fail'].forEach(function(x){const el=document.getElementById('rr-'+x);if(el)el.classList.toggle('sel',x===res);});}
-async function rcdLogNext(){
-  const r=S.rcdRun;if(!r)return;const c=r.queue[r.idx];
-  const ms=document.getElementById('rr-ms')?document.getElementById('rr-ms').value:'';
-  const result=window._rrResult||'pass';
-  const note=(document.getElementById('rr-note')?document.getElementById('rr-note').value:'')||null;
-  const data={circuit_id:c.id,test_date:new Date().toISOString().split('T')[0],trip_time_ms:ms?parseFloat(ms):null,result:result,tested_by:r.user,notes:note};
-  try{const res=await sb('rcd_tests',{method:'POST',body:JSON.stringify(data)});const nt=Array.isArray(res)?res[0]:res;if(nt)S.tests=[nt,...S.tests];}catch(e){}
-  r.results.push({number:c.number,label:c.label,result:result,ms:ms?parseFloat(ms):null});
-  r.idx++;window._rrResult='pass';
-  if(r.idx>=r.queue.length)r.phase='done';
-  rcdRunRender();
-}
-function rcdSkip(){const r=S.rcdRun;if(!r)return;const c=r.queue[r.idx];r.results.push({number:c.number,label:c.label,result:'skipped',ms:null});r.idx++;window._rrResult='pass';if(r.idx>=r.queue.length)r.phase='done';rcdRunRender();}
-function rcdClose(){S.rcdRun=null;if(_rcdOverlay){_rcdOverlay.remove();_rcdOverlay=null;}draw();}
-function rcdRunRender(){
-  const r=S.rcdRun;if(!r){if(_rcdOverlay){_rcdOverlay.remove();_rcdOverlay=null;}return;}
-  const o=ensureRcdOverlay();const board=S.selectedBoard||{};
-  if(r.phase==='scope'){
-    const all=rcdRunCircuits(false).length,due=rcdRunCircuits(true).length,cur=r.onlyDue?due:all;
-    o.innerHTML=`<div class="rcd-head"><button class="back-btn" style="padding:0 0 6px;color:#f0a500" onclick="rcdClose()">\u2190 Cancel</button><div class="rcd-title">\u26a1 Test all RCDs</div><div class="rcd-sub">${esc(board.name||'')}</div></div>
-      <div class="rcd-body"><div class="section-label" style="margin-top:0">Which RCDs?</div>
-        <div style="display:flex;gap:8px;margin-bottom:16px">
-          <div class="pri-opt ${!r.onlyDue?'sel':''}" onclick="rcdSetScope(false)">All RCDs<br><span style="font-size:17px;font-weight:700">${all}</span></div>
-          <div class="pri-opt ${r.onlyDue?'sel':''}" onclick="rcdSetScope(true)">Due / overdue<br><span style="font-size:17px;font-weight:700">${due}</span></div>
-        </div>
-        <button class="primary-btn" ${cur?'':'disabled style="opacity:.5"'} onclick="rcdStartRun()">${cur?('Start testing '+cur+' circuit'+(cur>1?'s':'')+' \u2192'):'Nothing to test'}</button>
-        <button class="cancel-btn" onclick="rcdClose()">Cancel</button></div>`;
-  } else if(r.phase==='step'){
-    const c=r.queue[r.idx],total=r.queue.length,pct=Math.round((r.idx/total)*100);
-    const myTests=S.tests.filter(t=>t.circuit_id===c.id).sort((a,b)=>new Date(b.test_date)-new Date(a.test_date)),last=myTests[0];
-    o.innerHTML=`<div class="rcd-head"><button class="back-btn" style="padding:0 0 6px;color:#f0a500" onclick="rcdClose()">\u2715 Exit run</button><div class="rcd-title">Circuit ${r.idx+1} of ${total}</div><div class="rcd-progress"><div style="width:${pct}%"></div></div></div>
-      <div class="rcd-body">
-        <div class="card"><div style="font-size:17px;font-weight:700;color:#111">Circuit ${esc(c.number)} \u2014 ${esc(c.label||'Unlabelled')}</div>
-          <div style="font-size:12px;color:#888;margin-top:2px">${esc(c.device_type||'\u2014')}</div>
-          <div style="font-size:11px;color:#aaa;margin-top:6px">Last test: ${last?fmtDate(last.test_date):'never'} \u00b7 interval ${(c.test_interval_months||6)} mo</div></div>
-        <label class="field-label">Trip time (ms)</label>
-        <input class="field-input" id="rr-ms" type="number" inputmode="decimal" placeholder="e.g. 18">
-        <label class="field-label" style="margin-bottom:6px">Result</label>
-        <div style="display:flex;gap:8px;margin-bottom:12px"><div class="pri-opt sel" id="rr-pass" onclick="rcdSetResult('pass')">\u2713 Pass</div><div class="pri-opt" id="rr-fail" onclick="rcdSetResult('fail')">\u2715 Fail</div></div>
-        <label class="field-label">Note (optional)</label>
-        <input class="field-input" id="rr-note" placeholder="Any observations\u2026">
-        <button class="primary-btn" onclick="rcdLogNext()">${r.idx+1>=total?'Log & finish':'Log & next \u2192'}</button>
-        <button class="ghost-btn" style="width:100%;margin-top:8px" onclick="rcdSkip()">Skip this one</button></div>`;
-    setTimeout(function(){const el=document.getElementById('rr-ms');if(el)el.focus();},50);
-  } else {
-    const logged=r.results.filter(x=>x.result!=='skipped'),pass=logged.filter(x=>x.result==='pass').length,fail=logged.filter(x=>x.result==='fail').length,skip=r.results.filter(x=>x.result==='skipped').length;
-    o.innerHTML=`<div class="rcd-head"><div class="rcd-title">\u2713 Run complete</div><div class="rcd-sub">${esc(board.name||'')}</div></div>
-      <div class="rcd-body"><div class="card" style="text-align:center;padding:18px"><div style="font-size:15px;font-weight:700">${logged.length} tested</div><div style="font-size:13px;color:#555;margin-top:4px">${pass} passed${fail?' \u00b7 '+fail+' failed':''}${skip?' \u00b7 '+skip+' skipped':''}</div></div>
-        <div class="section-label">Results</div>
-        <div class="card">${r.results.map(function(x,i){return '<div class="info-row"'+(i===r.results.length-1?' style="border-bottom:none"':'')+'><span class="info-label">C'+esc(x.number)+' '+esc(x.label||'')+'</span><span class="info-val" style="color:'+(x.result==='pass'?'#3B6D11':x.result==='fail'?'#A32D2D':'#999')+'">'+(x.result==='skipped'?'skipped':(x.result.toUpperCase()+(x.ms!=null?' \u00b7 '+x.ms+'ms':'')))+'</span></div>';}).join('')}</div>
-        <button class="primary-btn" onclick="rcdClose()">Done</button></div>`;
-  }
-}
 
 function chipHtml(status){
   if(!status)return'';
@@ -486,8 +419,6 @@ function drawBoard(app){
   </div>`;
 
   if(S.tab==='board'){
-    const rcdN=S.circuits.filter(c=>c.has_rcd).length;
-    if(rcdN)h+=`<button class="add-btn" style="width:calc(100% - 20px);margin:8px 10px 2px;justify-content:center" onclick="startRcdRun()">\u26a1 Test all RCDs (${rcdN})</button>`;
     // Phase legend for 3-phase
     if(isThreePhase){
       h+=`<div class="phase-legend">
@@ -508,14 +439,14 @@ function drawBoard(app){
       const phColor=phaseColor(ph);
       if(c){
         const status=statusColor(c);
-        h+=`<div class="circuit-card" onclick="selCircuit('${c.id}')">
+        h+=`<div class="circuit-card ${c.isolated?'isolated':''}" onclick="selCircuit('${c.id}')">
           <div class="phase-tab" style="background:${phColor}"></div>
           <div class="circuit-card-inner">
             <div class="circuit-card-num">Circuit ${i}</div>
             <div class="circuit-card-label">${esc(c.label||'Unlabelled')}</div>
             ${c.device_type?`<div class="circuit-card-sub">${esc(c.device_type)}</div>`:''}
           </div>
-          ${chipHtml(status)}
+          ${c.isolated?'<span class="iso-badge">⚠ ISO</span>':chipHtml(status)}
         </div>`;
       }else{
         h+=`<div class="empty-slot" onclick="openAddCircuit(${i})">
@@ -535,14 +466,14 @@ function drawBoard(app){
       const phColor=phaseColor(ph);
       if(c){
         const status=statusColor(c);
-        h+=`<div class="circuit-card" onclick="selCircuit('${c.id}')">
+        h+=`<div class="circuit-card ${c.isolated?'isolated':''}" onclick="selCircuit('${c.id}')">
           <div class="phase-tab" style="background:${phColor}"></div>
           <div class="circuit-card-inner">
             <div class="circuit-card-num">Circuit ${i}</div>
             <div class="circuit-card-label">${esc(c.label||'Unlabelled')}</div>
             ${c.device_type?`<div class="circuit-card-sub">${esc(c.device_type)}</div>`:''}
           </div>
-          ${chipHtml(status)}
+          ${c.isolated?'<span class="iso-badge">⚠ ISO</span>':chipHtml(status)}
         </div>`;
       }else{
         h+=`<div class="empty-slot" onclick="openAddCircuit(${i})">
@@ -680,6 +611,10 @@ function drawCircuit(app){
     </div>
   </div><div class="scroll">`;
 
+  if(c.isolated){
+    h+=`<div class="iso-banner"><div class="iso-banner-t">⚠ ISOLATED — DO NOT RE-ENERGISE</div><div class="iso-banner-s">Locked out by ${esc(c.isolated_by||'—')}${c.isolated_at?' · '+fmtDate(c.isolated_at):''}</div>${c.isolation_reason?`<div class="iso-banner-s">${esc(c.isolation_reason)}</div>`:''}</div>`;
+  }
+
   if(S.circuitTab==='info'){
     const fields=[
       ['Circuit number',esc(c.number||'—')],
@@ -695,6 +630,7 @@ function drawCircuit(app){
       <button class="add-btn" style="flex:1;justify-content:center" onclick="openModal('edit')">✏ Edit circuit</button>
       <button class="ghost-btn" onclick="openModal('request')">+ Request icon</button>
     </div>`;
+    h+=`<button class="ghost-btn" style="width:100%;margin-top:8px;justify-content:center;${c.isolated?'color:#3B6D11;border-color:#cfe3bd':'color:#A32D2D;border-color:#f3cccc'}" onclick="openModal('${c.isolated?'unisolate':'isolate'}')">${c.isolated?'🔓 Remove isolation':'🔒 Mark as isolated'}</button>`;
   }else{
     if(!c.has_rcd){
       h+=`<div class="card" style="text-align:center;padding:28px"><p style="font-size:13px;color:#888;margin-bottom:14px">No RCD protection on this circuit</p><button class="add-btn" style="margin:0 auto;justify-content:center" onclick="openModal('edit')">Enable RCD tracking</button></div>`;
@@ -808,6 +744,25 @@ function drawModal(){
       <div style="display:flex;gap:8px;margin-bottom:14px"><div class="pri-opt sel" id="pri-normal" onclick="selPri('normal')">Normal</div><div class="pri-opt" id="pri-urgent" onclick="selPri('urgent')">Urgent</div></div>
       ${!loggedIn?pinField:''}
       <button class="primary-btn" onclick="saveRequest()">Submit request</button>
+      <button class="cancel-btn" onclick="closeModal()">Cancel</button>`;
+  }
+  else if(S.modal==='isolate'&&c){
+    body=`<div class="modal-title">Mark circuit as isolated</div>
+      <p style="font-size:13px;color:#555;margin-bottom:6px;line-height:1.5">Locks out <strong>Circuit ${esc(c.number)} — ${esc(c.label||'Unlabelled')}</strong> with a clear "do not re-energise" warning on the board.</p>
+      <p style="font-size:12px;color:#888;margin-bottom:14px;line-height:1.5">If it\'s still isolated after 48 hours and after 7 days, an alert email is sent so it never gets forgotten on a job.</p>
+      ${whoLine}
+      <label class="field-label">Reason (recommended)</label><input class="field-input" id="iso-reason" placeholder="e.g. Replacing RCBO — do not re-energise">
+      ${!loggedIn?pinField:''}
+      <button class="primary-btn" id="m-save" style="background:#A32D2D;color:#fff" onclick="saveIsolate()">🔒 Mark as isolated</button>
+      <button class="cancel-btn" onclick="closeModal()">Cancel</button>`;
+  }
+  else if(S.modal==='unisolate'&&c){
+    body=`<div class="modal-title">Remove isolation</div>
+      <p style="font-size:13px;color:#555;margin-bottom:6px;line-height:1.5">Clears the isolation flag on <strong>Circuit ${esc(c.number)} — ${esc(c.label||'Unlabelled')}</strong>.</p>
+      ${c.isolated_by?`<p style="font-size:12px;color:#888;margin-bottom:14px;line-height:1.5">Isolated by ${esc(c.isolated_by)}${c.isolated_at?' on '+fmtDate(c.isolated_at):''}.</p>`:''}
+      ${whoLine}
+      ${!loggedIn?pinField:''}
+      <button class="primary-btn" id="m-save" style="background:#3B6D11;color:#fff" onclick="saveUnisolate()">🔓 Remove isolation</button>
       <button class="cancel-btn" onclick="closeModal()">Cancel</button>`;
   }
 
@@ -952,6 +907,30 @@ async function saveEdit(){
     S.circuits=S.circuits.map(c=>c.id===updated.id?updated:c);S.selectedCircuit=updated;S.currentUser=user;S.modal=null;
     draw();showToast('✓ Circuit saved');
   }catch(e){if(btn)btn.disabled=false;const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Save failed: '+e.message;}}
+}
+
+async function saveIsolate(){
+  const user=getPin();if(!user)return;
+  const btn=document.getElementById('m-save');if(btn)btn.disabled=true;
+  const reason=(document.getElementById('iso-reason')?.value||'').trim()||null;
+  const data={isolated:true,isolated_by:user.name,isolated_at:new Date().toISOString(),isolation_reason:reason,isolation_alert_48h_sent:false,isolation_alert_7d_sent:false};
+  try{
+    const res=await sb(`circuits?id=eq.${S.selectedCircuit.id}`,{method:'PATCH',body:JSON.stringify(data)});
+    const updated=Array.isArray(res)?res[0]:res;
+    S.circuits=S.circuits.map(c=>c.id===updated.id?updated:c);S.selectedCircuit=updated;S.currentUser=user;S.modal=null;
+    draw();showToast('⚠ Circuit isolated');
+  }catch(e){if(btn)btn.disabled=false;const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Failed: '+e.message;}}
+}
+async function saveUnisolate(){
+  const user=getPin();if(!user)return;
+  const btn=document.getElementById('m-save');if(btn)btn.disabled=true;
+  const data={isolated:false,isolated_by:null,isolated_at:null,isolation_reason:null,isolation_alert_48h_sent:false,isolation_alert_7d_sent:false};
+  try{
+    const res=await sb(`circuits?id=eq.${S.selectedCircuit.id}`,{method:'PATCH',body:JSON.stringify(data)});
+    const updated=Array.isArray(res)?res[0]:res;
+    S.circuits=S.circuits.map(c=>c.id===updated.id?updated:c);S.selectedCircuit=updated;S.currentUser=user;S.modal=null;
+    draw();showToast('✓ Isolation removed');
+  }catch(e){if(btn)btn.disabled=false;const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Failed: '+e.message;}}
 }
 
 async function saveRCD(){
