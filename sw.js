@@ -1,5 +1,5 @@
 /* Switchboard Legend service worker — app-shell offline (V3.18) */
-const CACHE = 'sbl-v3.20';
+const CACHE = 'sbl-v3.21';
 const PRECACHE = [
   './',
   './index.html',

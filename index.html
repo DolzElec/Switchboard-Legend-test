@@ -183,25 +183,42 @@ function localRowMerge(path,patch){
 }
 function queueWrite(path,opts,m){
   const body=(opts&&opts.body)?JSON.parse(opts.body):null;
+  const localId=(m==='POST')?('local-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)):null;
   const q=cacheGet('queue')||[];
-  q.push({path:path,method:m,body:(opts&&opts.body)||null,ts:Date.now()});
+  q.push({path:path,method:m,body:(opts&&opts.body)||null,localId:localId,ts:Date.now()});
   cacheSet('queue',q);
   showOffline();
   if(S.selectedBoard){const bid=S.selectedBoard.id;setTimeout(function(){try{cacheSet('board_'+bid,{circuits:S.circuits,tests:S.tests});}catch(e){}},0);}
-  if(m==='POST')return Promise.resolve([Object.assign({id:'local-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),created_at:new Date().toISOString(),_pending:true},body||{})]);
+  if(m==='POST')return Promise.resolve([Object.assign({id:localId,created_at:new Date().toISOString(),_pending:true},body||{})]);
   if(m==='PATCH')return Promise.resolve([localRowMerge(path,body||{})]);
   return Promise.resolve(null);
 }
 let _flushing=false;
+function remapLocalId(localId,realId){
+  if(!localId||!realId||localId===realId)return;
+  let q=cacheGet('queue')||[];
+  q.forEach(function(it){if(it.path&&it.path.indexOf(localId)>=0)it.path=it.path.split(localId).join(realId);if(it.body&&it.body.indexOf(localId)>=0)it.body=it.body.split(localId).join(realId);if(it.localId===localId)it.localId=realId;});
+  cacheSet('queue',q);
+  [S.circuits,S.tests,S.users,S.boards,S.sites].forEach(function(arr){if(Array.isArray(arr))arr.forEach(function(r){if(r&&r.id===localId)r.id=realId;});});
+  if(S.plan&&Array.isArray(S.plan.items))S.plan.items.forEach(function(r){if(r){if(r.id===localId)r.id=realId;if(r.switch_plate_id===localId)r.switch_plate_id=realId;}});
+}
 async function flushQueue(){
   if(_flushing||(typeof navigator!=='undefined'&&navigator.onLine===false))return;
-  let q=cacheGet('queue')||[];
-  if(!q.length)return;
+  if(!(cacheGet('queue')||[]).length)return;
   _flushing=true;let synced=0;
-  while(q.length){
+  while(true){
+    let q=cacheGet('queue')||[];
+    if(!q.length)break;
     const it=q[0];
-    try{await sbFetch(it.path,{method:it.method,body:it.body});q.shift();cacheSet('queue',q);synced++;}
-    catch(e){if(e&&e.http){q.shift();cacheSet('queue',q);continue;}break;}
+    try{
+      const res=await sbFetch(it.path,{method:it.method,body:it.body});
+      q=cacheGet('queue')||[];q.shift();cacheSet('queue',q);
+      if(it.method==='POST'&&it.localId){const row=Array.isArray(res)?res[0]:res;if(row&&row.id)remapLocalId(it.localId,row.id);}
+      synced++;
+    }catch(e){
+      if(e&&e.http){q=cacheGet('queue')||[];q.shift();cacheSet('queue',q);continue;}
+      break;
+    }
   }
   _flushing=false;
   if(synced){hideOffline();if(typeof showToast==='function')showToast('\u2713 Synced '+synced+' change'+(synced>1?'s':''));}
