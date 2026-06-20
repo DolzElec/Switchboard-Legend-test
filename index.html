@@ -12,13 +12,13 @@
 <link rel="apple-touch-icon" href="./icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Switchboard">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:'Barlow Condensed','Barlow',system-ui,sans-serif;background:#e8e8e8;min-height:100vh;display:flex;justify-content:center}
 #app{width:100%;max-width:480px;min-height:100vh;display:flex;flex-direction:column;background:#f5f5f5;position:relative}
-.topbar{background:#0d1b2e;padding:14px 16px 10px;flex-shrink:0}
+.topbar{background:#0d1b2e;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 10px;flex-shrink:0}
 .topbar-label{font-size:10px;font-weight:500;color:rgba(255,255,255,0.55);letter-spacing:1px;text-transform:uppercase}
 .topbar-title{font-size:20px;font-weight:700;color:#fff;margin-top:2px}
 .topbar-sub{font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px}
@@ -593,7 +593,7 @@ function drawCircuit(app){
   const phColor=phaseColor(ph);
   const phLabel={R:'Red phase',W:'White phase',B:'Blue phase',SP:'Single phase'}[ph]||'—';
 
-  let h=`<div style="background:#0d1b2e;flex-shrink:0">
+  let h=`<div style="background:#0d1b2e;flex-shrink:0;padding-top:env(safe-area-inset-top,0px)">
     <button class="back-btn" onclick="set({view:'board',selectedCircuit:null,modal:null})">← Board</button>
     <div style="padding:2px 16px 10px;display:flex;align-items:flex-start;gap:10px">
       <div style="width:6px;border-radius:3px;background:${phColor};align-self:stretch;flex-shrink:0;margin-top:2px"></div>
@@ -907,7 +907,7 @@ async function saveRequest(){
 // ── Admin ─────────────────────────────────────────────────────────────────────
 function drawAdmin(app){
   const t=S.adminTab||'boards';
-  let h=`<div style="background:#0d1b2e;flex-shrink:0">
+  let h=`<div style="background:#0d1b2e;flex-shrink:0;padding-top:env(safe-area-inset-top,0px)">
     <button class="back-btn" onclick="set({view:'sites'})">← Back</button>
     <div class="topbar-logo" style="padding:2px 16px 10px"><img src="${LOGO}" alt="DolzElec" style="height:32px"><div class="topbar-logo-text"><div class="topbar-logo-sub">Admin Panel</div><div class="topbar-logo-title">${esc(S.sites[0]?.name||'')}</div></div></div>
     <div class="nav-tabs">
