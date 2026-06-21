@@ -41,6 +41,13 @@ body{font-family:'Barlow Condensed','Barlow',system-ui,sans-serif;background:#e8
 .iso-banner{background:#FCEBEB;border:1px solid #A32D2D;border-left-width:4px;border-radius:8px;padding:11px 13px;margin-bottom:10px}
 .iso-banner-t{font-size:13px;font-weight:800;color:#A32D2D;letter-spacing:0.3px}
 .iso-banner-s{font-size:12px;color:#7a2222;margin-top:3px;line-height:1.4}
+.supply-card{background:#fff;border:1px solid #e6e6e6;border-radius:10px;padding:9px 12px;margin-bottom:10px}
+.supply-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.supply-title{font-size:11px;font-weight:700;color:#0d1b2e;letter-spacing:0.3px}
+.supply-edit{background:transparent;border:none;color:#2980b9;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;padding:2px 4px}
+.supply-rows{display:flex;flex-wrap:wrap;gap:7px 18px}
+.supply-l{font-size:9px;color:#999;text-transform:uppercase;letter-spacing:0.4px}
+.supply-v{font-size:13px;font-weight:600;color:#111;margin-top:1px}
 .phase-tab{width:10px;min-height:46px;flex-shrink:0;align-self:stretch}
 .phase-R{background:#c0392b}
 .phase-W{background:#bdc3c7}
@@ -397,6 +404,17 @@ function selBoard(bId,sId){
 }
 
 // ── Board view — switchboard grid ─────────────────────────────────────────────
+function supplyCardHtml(b){
+  const rows=[];
+  const st={single_phase:'Single phase',three_phase:'3-phase'}[b.supply_type];
+  if(st)rows.push(['Supply',st]);
+  if(b.fed_from)rows.push(['Fed from',esc(b.fed_from)]);
+  if(b.main_switch_rating)rows.push(['Main switch',esc(b.main_switch_rating)]);
+  if(b.metering_nmi)rows.push(['NMI',esc(b.metering_nmi)]);
+  const hasExtra=!!(b.fed_from||b.main_switch_rating||b.metering_nmi);
+  const items=rows.map(([l,v])=>`<div class="supply-item"><div class="supply-l">${l}</div><div class="supply-v">${v}</div></div>`).join('');
+  return `<div class="supply-card"><div class="supply-head"><div class="supply-title">⚡ Supply &amp; main switch</div><button class="supply-edit" onclick="openModal('supply')">${hasExtra?'Edit':'+ Add details'}</button></div><div class="supply-rows">${items}</div></div>`;
+}
 function drawBoard(app){
   const b=S.selectedBoard,site=S.selectedSite;
   const ways=b.ways||24;
@@ -419,6 +437,7 @@ function drawBoard(app){
   </div>`;
 
   if(S.tab==='board'){
+    h+=supplyCardHtml(b);
     // Phase legend for 3-phase
     if(isThreePhase){
       h+=`<div class="phase-legend">
@@ -765,6 +784,20 @@ function drawModal(){
       <button class="primary-btn" id="m-save" style="background:#3B6D11;color:#fff" onclick="saveUnisolate()">🔓 Remove isolation</button>
       <button class="cancel-btn" onclick="closeModal()">Cancel</button>`;
   }
+  else if(S.modal==='supply'){
+    const bd=S.selectedBoard;
+    body=`<div class="modal-title">Supply &amp; main switch</div>
+      <p style="font-size:12px;color:#888;margin-bottom:14px;line-height:1.5">Reference details for ${esc(bd.name)}. Leave any field blank if not known.</p>
+      ${whoLine}
+      <label class="field-label">Supply type</label>
+      <select class="field-input" id="su-type"><option value="single_phase"${bd.supply_type==='single_phase'?' selected':''}>Single phase</option><option value="three_phase"${bd.supply_type==='three_phase'?' selected':''}>Three phase</option></select>
+      <label class="field-label">Fed from</label><input class="field-input" id="su-fed" value="${esc(bd.fed_from||'')}" placeholder="e.g. Main Switchboard (MSB)">
+      <label class="field-label">Main switch rating</label><input class="field-input" id="su-main" value="${esc(bd.main_switch_rating||'')}" placeholder="e.g. 63A 4-pole">
+      <label class="field-label">Metering NMI (optional)</label><input class="field-input" id="su-nmi" value="${esc(bd.metering_nmi||'')}" placeholder="e.g. 2001234567">
+      ${!loggedIn?pinField:''}
+      <button class="primary-btn" id="m-save" onclick="saveSupply()">Save details</button>
+      <button class="cancel-btn" onclick="closeModal()">Cancel</button>`;
+  }
 
   if(!body)return;
   const o=document.createElement('div');o.className='modal-overlay';
@@ -933,6 +966,18 @@ async function saveUnisolate(){
   }catch(e){if(btn)btn.disabled=false;const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Failed: '+e.message;}}
 }
 
+async function saveSupply(){
+  const user=getPin();if(!user)return;
+  const btn=document.getElementById('m-save');if(btn)btn.disabled=true;
+  const data={supply_type:document.getElementById('su-type')?.value||S.selectedBoard.supply_type,fed_from:(document.getElementById('su-fed')?.value||'').trim()||null,main_switch_rating:(document.getElementById('su-main')?.value||'').trim()||null,metering_nmi:(document.getElementById('su-nmi')?.value||'').trim()||null};
+  try{
+    const res=await sb(`boards?id=eq.${S.selectedBoard.id}`,{method:'PATCH',body:JSON.stringify(data)});
+    const updated=Array.isArray(res)?res[0]:res;
+    const merged=Object.assign({},S.selectedBoard,updated||{},data);
+    S.selectedBoard=merged;S.boards=S.boards.map(b=>b.id===merged.id?merged:b);S.currentUser=user;S.modal=null;
+    draw();showToast('✓ Supply details saved');
+  }catch(e){if(btn)btn.disabled=false;const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Save failed: '+e.message;}}
+}
 async function saveRCD(){
   const user=getPin();if(!user)return;
   const btn=document.getElementById('m-save');if(btn)btn.disabled=true;
