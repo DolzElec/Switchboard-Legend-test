@@ -263,7 +263,7 @@ let S={
   view:'loading',
   selectedBoard:null,selectedSite:null,selectedCircuit:null,
   tab:'board',circuitTab:'info',adminTab:'boards',
-  modal:null,error:null,_rcdEditId:null,
+  modal:null,error:null,_rcdEditId:null,_circuitDraft:null,_rcdReturn:false,
   plan:{loaded:false,loading:false,plans:[],current:null,items:[],editMode:false,tool:'select',placingType:null,selectedId:null,filterCircuit:null,walls:[],wallDraft:null,hoverId:null,placeCount:0,view:null}
 };
 const set=patch=>{Object.assign(S,patch);draw();};
@@ -625,6 +625,72 @@ function rcdsCardHtml(b){
   }
   return `<div class="supply-card"><div class="supply-head"><div class="supply-title">\ud83d\udee1 RCDs (earth-leakage)</div><button class="supply-edit" onclick="openAddRcd()">+ Add RCD</button></div><div class="rcd-list">${rows}</div></div>`;
 }
+function rcdOptionsHtml(selectedId){
+  let o=`<option value=""${!selectedId?' selected':''}>Unprotected (no RCD)</option>`;
+  (S.rcds||[]).forEach(function(r){
+    o+=`<option value="${r.id}"${r.id===selectedId?' selected':''}>${esc(r.name||'RCD')} (${rcdPolesLabel(r.poles)})${r.rating?' '+esc(r.rating):''}</option>`;
+  });
+  o+=`<option value="__add__">\uff0b Add new RCD\u2026</option>`;
+  return o;
+}
+function deviceSectionHtml(p,dt,rating,protById,interval,includeInterval){
+  return `<label class="field-label">Protection device</label>
+    <div class="seg" id="${p}-dev-seg">
+      <button type="button" class="seg-btn ${dt==='MCB'?'on':''}" onclick="devSetType('${p}','MCB')">MCB</button>
+      <button type="button" class="seg-btn ${dt==='RCBO'?'on':''}" onclick="devSetType('${p}','RCBO')">RCBO</button>
+    </div>
+    <input type="hidden" id="${p}-devtype" value="${dt}">
+    <label class="field-label">Rating / size (optional)</label><input class="field-input" id="${p}-rating" value="${esc(rating||'')}" placeholder="e.g. 20A">
+    <div id="${p}-protby-wrap" style="${dt==='MCB'?'':'display:none'}">
+      <label class="field-label">Protected by</label>
+      <select class="field-input" id="${p}-protby" onchange="onProtbyChange('${p}',this)">${rcdOptionsHtml(protById||'')}</select>
+      <div id="${p}-protby-warn" style="${dt==='MCB'&&!protById?'':'display:none;'}font-size:11px;color:#854F0B;margin:2px 0 10px">\u26a0 No RCD assigned \u2014 saved as unprotected.</div>
+    </div>`
+    +(includeInterval?`<div id="${p}-interval-wrap" style="${dt==='RCBO'?'':'display:none'}">
+      <label class="field-label">Test interval (RCBO)</label>
+      <select class="field-input" id="${p}-interval">${[3,6,12,24].map(m=>`<option value="${m}"${m===(interval||6)?' selected':''}>${m} months</option>`).join('')}</select>
+    </div>`:'');
+}
+function devSetType(p,t){
+  const h=document.getElementById(p+'-devtype');if(h)h.value=t;
+  document.querySelectorAll('#'+p+'-dev-seg .seg-btn').forEach(b=>b.classList.toggle('on',b.textContent.trim()===t));
+  const w=document.getElementById(p+'-protby-wrap');if(w)w.style.display=(t==='MCB')?'':'none';
+  const iw=document.getElementById(p+'-interval-wrap');if(iw)iw.style.display=(t==='RCBO')?'':'none';
+  devUpdateWarn(p);
+}
+function devUpdateWarn(p){
+  const t=document.getElementById(p+'-devtype')?.value;
+  const sel=document.getElementById(p+'-protby');
+  const warn=document.getElementById(p+'-protby-warn');
+  if(warn)warn.style.display=(t==='MCB'&&sel&&!sel.value)?'block':'none';
+}
+function onProtbyChange(p,sel){
+  if(sel.value==='__add__'){sel.value='';addRcdInline(p);return;}
+  devUpdateWarn(p);
+}
+function readCircuitDraft(p){
+  const g=id=>document.getElementById(id);
+  const d={p:p,kind:(p==='ac'?'add':'edit')};
+  d.label=g(p+'-label')?.value||'';
+  d.devtype=g(p+'-devtype')?.value||'MCB';
+  d.rating=g(p+'-rating')?.value||'';
+  d.cable=g(p+'-cable')?.value||'';
+  d.notes=g(p+'-notes')?.value||'';
+  d.protby=g(p+'-protby')?.value||'';
+  if(p==='ac'){d.date=g('ac-date')?.value||'';d.slot=S._addSlot;}
+  else{d.circuitId=S.selectedCircuit?S.selectedCircuit.id:null;}
+  return d;
+}
+function addRcdInline(p){
+  S._circuitDraft=readCircuitDraft(p);
+  S._rcdReturn=true;S._rcdEditId=null;
+  openModal('addrcd');
+}
+function cancelRcdModal(){
+  if(S._rcdReturn){S._rcdReturn=false;S.modal=(S._circuitDraft&&S._circuitDraft.kind==='add')?'add-circuit':'edit';drawModal();return;}
+  closeModal();
+}
+function openEditCircuit(){S._circuitDraft=null;S._rcdReturn=false;openModal('edit');}
 function supplyCardHtml(b){
   const rows=[];
   const st={single_phase:'Single phase',three_phase:'3-phase'}[b.supply_type];
@@ -874,13 +940,13 @@ function drawCircuit(app){
     h+=`<div class="card">${fields.map(([l,v],i)=>`<div class="info-row"${i===fields.length-1?' style="border-bottom:none"':''}><span class="info-label">${l}</span><span class="info-val">${v}</span></div>`).join('')}</div>`;
     if(c.notes)h+=`<div class="card"><div class="section-label" style="margin-top:0">Notes</div><p style="font-size:13px;color:#333;line-height:1.6;margin-top:5px">${esc(c.notes)}</p></div>`;
     h+=`<div style="display:flex;gap:8px;margin-top:4px">
-      <button class="add-btn" style="flex:1;justify-content:center" onclick="openModal('edit')">✏ Edit circuit</button>
+      <button class="add-btn" style="flex:1;justify-content:center" onclick="openEditCircuit()">✏ Edit circuit</button>
       <button class="ghost-btn" onclick="openModal('request')">+ Request icon</button>
     </div>`;
     h+=`<button class="ghost-btn" style="width:100%;margin-top:8px;justify-content:center;${c.isolated?'color:#3B6D11;border-color:#cfe3bd':'color:#A32D2D;border-color:#f3cccc'}" onclick="openModal('${c.isolated?'unisolate':'isolate'}')">${c.isolated?'🔓 Remove isolation':'🔒 Mark as isolated'}</button>`;
   }else{
     if(!c.has_rcd){
-      h+=`<div class="card" style="text-align:center;padding:28px"><p style="font-size:13px;color:#888;margin-bottom:14px">No RCD protection on this circuit</p><button class="add-btn" style="margin:0 auto;justify-content:center" onclick="openModal('edit')">Enable RCD tracking</button></div>`;
+      h+=`<div class="card" style="text-align:center;padding:28px"><p style="font-size:13px;color:#888;margin-bottom:14px">No RCD protection on this circuit</p><button class="add-btn" style="margin:0 auto;justify-content:center" onclick="openEditCircuit()">Enable RCD tracking</button></div>`;
     }else{
       const tf=[
         ['Test interval',(c.test_interval_months||6)+' months',''],
@@ -900,13 +966,14 @@ function drawCircuit(app){
 
 // ── Modals ────────────────────────────────────────────────────────────────────
 function openAddCircuit(slotNum){
+  S._circuitDraft=null;S._rcdReturn=false;
   S._addSlot=slotNum;
   S.modal='add-circuit';
   drawModal();
 }
 
 function openModal(type){S.modal=type;drawModal();}
-function closeModal(){S.modal=null;document.querySelector('.modal-overlay')?.remove();}
+function closeModal(){S.modal=null;S._circuitDraft=null;S._rcdReturn=false;document.querySelector('.modal-overlay')?.remove();}
 
 function drawModal(){
   document.querySelector('.modal-overlay')?.remove();
@@ -923,37 +990,32 @@ function drawModal(){
     const ph=phaseFor(slot,b?.supply_type||'three_phase');
     const phLabel={R:'Red phase',W:'White phase',B:'Blue phase',SP:'Single phase'}[ph]||'—';
     const phColor=phaseColor(ph);
+    const dft=(S._circuitDraft&&S._circuitDraft.kind==='add')?S._circuitDraft:null;
+    const dt=dft?dft.devtype:'MCB';const rating=dft?dft.rating:'';const protBy=dft?dft.protby:'';
     body=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
       <div style="width:6px;height:40px;border-radius:3px;background:${phColor};flex-shrink:0"></div>
       <div><div class="modal-title" style="margin-bottom:2px">Add circuit ${slot}</div>
       <div style="font-size:12px;color:#888">${phLabel} · ${esc(b?.name||'')}</div></div>
     </div>
     ${whoLine}
-    <label class="field-label">Label *</label><input class="field-input" id="ac-label" placeholder="e.g. Kitchen Appliances">
-    <label class="field-label">Protection device</label><input class="field-input" id="ac-device" placeholder="e.g. 20A MCB + RCD">
-    <label class="field-label">Cable size</label><input class="field-input" id="ac-cable" placeholder="e.g. 2.5mm² TPS">
-    <label class="field-label">Install date</label><input class="field-input" id="ac-date" type="date">
-    <label class="field-label">Notes</label><textarea class="field-textarea" id="ac-notes" placeholder="Any notes about this circuit…"></textarea>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><input type="checkbox" id="ac-rcd"><label for="ac-rcd" style="font-size:13px">Has RCD protection</label></div>
-    <div id="ac-interval-wrap" style="display:none">
-      <label class="field-label">Test interval</label>
-      <select class="field-input" id="ac-interval">${[3,6,12,24].map(m=>`<option value="${m}"${m===6?' selected':''}>${m} months</option>`).join('')}</select>
-    </div>
+    <label class="field-label">Label *</label><input class="field-input" id="ac-label" value="${dft?esc(dft.label):''}" placeholder="e.g. Kitchen Appliances">
+    ${deviceSectionHtml('ac',dt,rating,protBy,6,false)}
+    <label class="field-label">Cable size</label><input class="field-input" id="ac-cable" value="${dft?esc(dft.cable):''}" placeholder="e.g. 2.5mm² TPS">
+    <label class="field-label">Install date</label><input class="field-input" id="ac-date" type="date" value="${dft?esc(dft.date):''}">
+    <label class="field-label">Notes</label><textarea class="field-textarea" id="ac-notes" placeholder="Any notes about this circuit…">${dft?esc(dft.notes):''}</textarea>
     ${!loggedIn?pinField:''}
     <button class="primary-btn" id="m-save" onclick="saveAddCircuit()">Add circuit</button>
     <button class="cancel-btn" onclick="closeModal()">Cancel</button>`;
   }
   else if(S.modal==='edit'&&c){
+    const dft=(S._circuitDraft&&S._circuitDraft.kind==='edit'&&S._circuitDraft.circuitId===c.id)?S._circuitDraft:null;
+    const dt=dft?dft.devtype:(c.device_type==='RCBO'?'RCBO':'MCB');
+    const rating=dft?dft.rating:(c.device_rating||'');const protBy=dft?dft.protby:(c.protected_by_rcd_id||'');
     body=`<div class="modal-title">Edit — Circuit ${esc(c.number)}</div>${whoLine}
-      <label class="field-label">Label</label><input class="field-input" id="e-label" value="${esc(c.label||'')}" placeholder="e.g. Kitchen Appliances">
-      <label class="field-label">Protection device</label><input class="field-input" id="e-device" value="${esc(c.device_type||'')}" placeholder="e.g. 20A MCB + RCD">
-      <label class="field-label">Cable size</label><input class="field-input" id="e-cable" value="${esc(c.cable_size||'')}" placeholder="e.g. 2.5mm² TPS">
-      <label class="field-label">Notes</label><textarea class="field-textarea" id="e-notes" placeholder="Any notes…">${esc(c.notes||'')}</textarea>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><input type="checkbox" id="e-rcd" ${c.has_rcd?'checked':''}><label for="e-rcd" style="font-size:13px">Has RCD protection</label></div>
-      <div id="e-interval-wrap" style="${c.has_rcd?'':'display:none'}">
-        <label class="field-label">Test interval</label>
-        <select class="field-input" id="e-interval">${[3,6,12,24].map(m=>`<option value="${m}"${(c.test_interval_months||6)===m?' selected':''}>${m} months</option>`).join('')}</select>
-      </div>
+      <label class="field-label">Label</label><input class="field-input" id="e-label" value="${dft?esc(dft.label):esc(c.label||'')}" placeholder="e.g. Kitchen Appliances">
+      ${deviceSectionHtml('e',dt,rating,protBy,c.test_interval_months||6,true)}
+      <label class="field-label">Cable size</label><input class="field-input" id="e-cable" value="${dft?esc(dft.cable):esc(c.cable_size||'')}" placeholder="e.g. 2.5mm² TPS">
+      <label class="field-label">Notes</label><textarea class="field-textarea" id="e-notes" placeholder="Any notes…">${dft?esc(dft.notes):esc(c.notes||'')}</textarea>
       ${!loggedIn?pinField:''}
       <button class="primary-btn" id="m-save" onclick="saveEdit()">Save changes</button>
       <button class="cancel-btn" onclick="closeModal()">Cancel</button>
@@ -1049,7 +1111,7 @@ function drawModal(){
       ${loggedIn?'<div class="err-msg" id="m-err"></div>':''}
       <button class="primary-btn" id="m-save" onclick="saveRcdDevice()">${ed?'Save RCD':'Add RCD'}</button>
       ${ed?`<button class="cancel-btn" style="color:#A32D2D" onclick="askDeleteRcd()">Delete this RCD</button>`:''}
-      <button class="cancel-btn" onclick="closeModal()">Cancel</button>`;
+      <button class="cancel-btn" onclick="cancelRcdModal()">Cancel</button>`;
   }
   else if(S.modal==='delrcd'){
     const r=S.rcds.find(x=>x.id===S._rcdEditId)||{};
@@ -1099,17 +1161,21 @@ async function saveAddCircuit(){
     return;
   }
   const btn=document.getElementById('m-save');if(btn)btn.disabled=true;
-  const hasRcd=document.getElementById('ac-rcd')?.checked||false;
+  const deviceType=document.getElementById('ac-devtype')?.value||'MCB';
+  let protBy=document.getElementById('ac-protby')?.value||'';if(protBy==='__add__')protBy='';
+  const isProt=(deviceType==='RCBO')||(deviceType==='MCB'&&!!protBy);
   const data={
     board_id:S.selectedBoard.id,
     number:String(S._addSlot),
     label,
-    device_type:document.getElementById('ac-device')?.value||null,
+    device_type:deviceType,
+    device_rating:(document.getElementById('ac-rating')?.value||'').trim()||null,
+    protected_by_rcd_id:deviceType==='MCB'?(protBy||null):null,
     cable_size:document.getElementById('ac-cable')?.value||null,
     install_date:document.getElementById('ac-date')?.value||null,
     notes:document.getElementById('ac-notes')?.value||null,
-    has_rcd:hasRcd,
-    test_interval_months:hasRcd?parseInt(document.getElementById('ac-interval')?.value)||6:6,
+    has_rcd:isProt,
+    test_interval_months:6,
     last_edited_by:user.name,
     last_edited_at:new Date().toISOString()
   };
@@ -1117,7 +1183,7 @@ async function saveAddCircuit(){
     const res=await sb('circuits',{method:'POST',body:JSON.stringify(data)});
     const nc=Array.isArray(res)?res[0]:res;
     S.circuits=[...S.circuits,nc];
-    S.currentUser=user;S.modal=null;
+    S.currentUser=user;S.modal=null;S._circuitDraft=null;
     draw();showToast('✓ Circuit '+S._addSlot+' added');
   }catch(e){
     if(btn)btn.disabled=false;
@@ -1196,11 +1262,14 @@ async function saveArchive_fromList(id,name){
 async function saveEdit(){
   const user=getPin();if(!user)return;
   const btn=document.getElementById('m-save');if(btn)btn.disabled=true;
-  const data={label:document.getElementById('e-label')?.value||null,device_type:document.getElementById('e-device')?.value||null,cable_size:document.getElementById('e-cable')?.value||null,notes:document.getElementById('e-notes')?.value||null,has_rcd:document.getElementById('e-rcd')?.checked||false,test_interval_months:parseInt(document.getElementById('e-interval')?.value)||6,last_edited_by:user.name,last_edited_at:new Date().toISOString()};
+  const eType=document.getElementById('e-devtype')?.value||'MCB';
+  let eProt=document.getElementById('e-protby')?.value||'';if(eProt==='__add__')eProt='';
+  const eIsProt=(eType==='RCBO')||(eType==='MCB'&&!!eProt);
+  const data={label:document.getElementById('e-label')?.value||null,device_type:eType,device_rating:(document.getElementById('e-rating')?.value||'').trim()||null,protected_by_rcd_id:eType==='MCB'?(eProt||null):null,cable_size:document.getElementById('e-cable')?.value||null,notes:document.getElementById('e-notes')?.value||null,has_rcd:eIsProt,test_interval_months:eType==='RCBO'?(parseInt(document.getElementById('e-interval')?.value)||6):6,last_edited_by:user.name,last_edited_at:new Date().toISOString()};
   try{
     const res=await sb(`circuits?id=eq.${S.selectedCircuit.id}`,{method:'PATCH',body:JSON.stringify(data)});
     const updated=Array.isArray(res)?res[0]:res;
-    S.circuits=S.circuits.map(c=>c.id===updated.id?updated:c);S.selectedCircuit=updated;S.currentUser=user;S.modal=null;
+    S.circuits=S.circuits.map(c=>c.id===updated.id?updated:c);S.selectedCircuit=updated;S.currentUser=user;S.modal=null;S._circuitDraft=null;
     draw();showToast('✓ Circuit saved');
   }catch(e){if(btn)btn.disabled=false;const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Save failed: '+e.message;}}
 }
@@ -1240,8 +1309,8 @@ async function saveSupply(){
     draw();showToast('✓ Supply details saved');
   }catch(e){if(btn)btn.disabled=false;const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Save failed: '+e.message;}}
 }
-function openAddRcd(){S._rcdEditId=null;openModal('addrcd');}
-function openEditRcd(id){S._rcdEditId=id;openModal('editrcd');}
+function openAddRcd(){S._rcdEditId=null;S._rcdReturn=false;openModal('addrcd');}
+function openEditRcd(id){S._rcdEditId=id;S._rcdReturn=false;openModal('editrcd');}
 function rdSetPoles(btn,p){const h=document.getElementById('rd-poles');if(h)h.value=p;document.querySelectorAll('#rd-poles-seg .seg-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
 async function saveRcdDevice(){
   const user=getPin();if(!user)return;
@@ -1261,6 +1330,7 @@ async function saveRcdDevice(){
       const data={board_id:S.selectedBoard.id,name,poles,rating,test_interval_months:interval};
       const res=await sb('rcds',{method:'POST',body:JSON.stringify(data)});
       const nr=Array.isArray(res)?res[0]:res;if(nr)S.rcds=[...S.rcds,nr];showToast('\u2713 RCD added');
+      if(S._rcdReturn){S._rcdReturn=false;if(S._circuitDraft)S._circuitDraft.protby=nr?nr.id:'';S.currentUser=user;S.modal=(S._circuitDraft&&S._circuitDraft.kind==='add')?'add-circuit':'edit';drawModal();return;}
     }
     S.currentUser=user;S.modal=null;draw();
   }catch(e){if(btn)btn.disabled=false;const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Save failed: '+e.message;}}
