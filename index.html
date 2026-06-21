@@ -541,6 +541,8 @@ function generateReport(){
     +'@page{size:A4;margin:13mm}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0}'
     +'.hdr{background:#0d1b2e;padding:14px 22px;display:flex;justify-content:space-between;align-items:center}'
     +'.rlogo{height:50px;width:auto;display:block}'
+    +'.brandwrap{display:flex;align-items:center;gap:12px}'
+    +'.brand{font-size:24px;font-weight:800;color:#f0a500;letter-spacing:2px}'
     +'.htitle{font-size:13px;color:#fff;font-weight:600;text-align:right}'
     +'.wrap{padding:16px 22px}'
     +'.mtab{border-collapse:collapse;margin-bottom:12px}.mtab td{padding:2px 0;font-size:12px;vertical-align:top}'
@@ -554,7 +556,7 @@ function generateReport(){
     +'.cnum{font-weight:700;text-align:center;width:34px}.num{text-align:center}.st{font-weight:700}'
     +'.foot{margin-top:16px;font-size:10px;color:#aaa;text-align:center}'
     +'</style></head><body>'
-    +'<div class="hdr"><img class="rlogo" src="'+RLOGO+'"><div class="htitle">RCD Compliance Report</div></div>'
+    +'<div class="hdr"><div class="brandwrap"><img class="rlogo" src="'+RLOGO+'"><div class="brand">DOLZELEC</div></div><div class="htitle">RCD Compliance Report</div></div>'
     +'<div class="wrap">'
     +'<table class="mtab">'+metaRows+'</table>'
     +summary
