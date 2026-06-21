@@ -48,6 +48,17 @@ body{font-family:'Barlow Condensed','Barlow',system-ui,sans-serif;background:#e8
 .supply-rows{display:flex;flex-wrap:wrap;gap:7px 18px}
 .supply-l{font-size:9px;color:#999;text-transform:uppercase;letter-spacing:0.4px}
 .supply-v{font-size:13px;font-weight:600;color:#111;margin-top:1px}
+.seg{display:flex;gap:6px;margin-bottom:12px}
+.seg-btn{flex:1;padding:9px;border:1px solid #d8d8d8;background:#fff;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;color:#666;cursor:pointer}
+.seg-btn.on{background:#0d1b2e;color:#fff;border-color:#0d1b2e}
+.rcd-list{display:flex;flex-direction:column;gap:6px}
+.rcd-row{display:flex;align-items:center;gap:8px;padding:8px;border:1px solid #ececec;border-radius:8px;cursor:pointer;background:#fff}
+.rcd-row:active{background:#f6f6f6}
+.rcd-row-main{flex:1;min-width:0}
+.rcd-row-name{font-size:13px;font-weight:700;color:#111}
+.rcd-poles{font-size:10px;font-weight:700;color:#2980b9;margin-left:4px}
+.rcd-row-sub{font-size:11px;color:#888;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rcd-chip{font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;flex-shrink:0;white-space:nowrap}
 .phase-tab{width:10px;min-height:46px;flex-shrink:0;align-self:stretch}
 .phase-R{background:#c0392b}
 .phase-W{background:#bdc3c7}
@@ -196,7 +207,7 @@ function localRowMerge(path,patch){
   const table=path.split('?')[0];
   const mm=path.match(/id=eq\.([^&]+)/);
   const id=mm?decodeURIComponent(mm[1]):null;
-  const map={circuits:S.circuits,rcd_tests:S.tests,users:S.users,boards:S.boards,sites:S.sites};
+  const map={circuits:S.circuits,rcd_tests:S.tests,users:S.users,boards:S.boards,sites:S.sites,rcds:S.rcds};
   const arr=map[table];
   if(arr&&id){const row=arr.find(r=>r&&r.id===id);if(row)return Object.assign({},row,patch);}
   return Object.assign({id:id},patch);
@@ -208,7 +219,7 @@ function queueWrite(path,opts,m){
   q.push({path:path,method:m,body:(opts&&opts.body)||null,localId:localId,ts:Date.now()});
   cacheSet('queue',q);
   showOffline();
-  if(S.selectedBoard){const bid=S.selectedBoard.id;setTimeout(function(){try{cacheSet('board_'+bid,{circuits:S.circuits,tests:S.tests});}catch(e){}},0);}
+  if(S.selectedBoard){const bid=S.selectedBoard.id;setTimeout(function(){try{cacheSet('board_'+bid,{circuits:S.circuits,tests:S.tests,rcds:S.rcds});}catch(e){}},0);}
   if(m==='POST')return Promise.resolve([Object.assign({id:localId,created_at:new Date().toISOString(),_pending:true},body||{})]);
   if(m==='PATCH')return Promise.resolve([localRowMerge(path,body||{})]);
   return Promise.resolve(null);
@@ -247,12 +258,12 @@ if(typeof window!=='undefined')window.addEventListener('online',function(){flush
 
 // ── State ────────────────────────────────────────────────────────────────────
 let S={
-  sites:[],boards:[],users:[],circuits:[],tests:[],
+  sites:[],boards:[],users:[],circuits:[],tests:[],rcds:[],
   currentUser:null,
   view:'loading',
   selectedBoard:null,selectedSite:null,selectedCircuit:null,
   tab:'board',circuitTab:'info',adminTab:'boards',
-  modal:null,error:null,
+  modal:null,error:null,_rcdEditId:null,
   plan:{loaded:false,loading:false,plans:[],current:null,items:[],editMode:false,tool:'select',placingType:null,selectedId:null,filterCircuit:null,walls:[],wallDraft:null,hoverId:null,placeCount:0,view:null}
 };
 const set=patch=>{Object.assign(S,patch);draw();};
@@ -308,15 +319,16 @@ async function loadBoard(board,updateState=true){
   S.plan={loaded:false,loading:false,plans:[],current:null,items:[],editMode:false,tool:'select',placingType:null,selectedId:null,filterCircuit:null,walls:[],wallDraft:null,hoverId:null,placeCount:0,view:null};
   if(updateState)set({view:'loading'});
   try{
-    const[circuits,tests]=await Promise.all([
+    const[circuits,tests,rcds]=await Promise.all([
       sb(`circuits?select=*&board_id=eq.${board.id}&archived_at=is.null&order=number.asc`),
-      sb(`rcd_tests?select=*&order=test_date.desc`)
+      sb(`rcd_tests?select=*&order=test_date.desc`),
+      sb(`rcds?select=*&board_id=eq.${board.id}&order=created_at.asc`)
     ]);
-    cacheSet('board_'+board.id,{circuits,tests});hideOffline();
-    set({circuits:circuits||[],tests:tests||[],view:'board',tab:'board'});
+    cacheSet('board_'+board.id,{circuits,tests,rcds});hideOffline();
+    set({circuits:circuits||[],tests:tests||[],rcds:rcds||[],view:'board',tab:'board'});
   }catch(e){
     const c=cacheGet('board_'+board.id);
-    if(c){showOffline();set({circuits:c.circuits||[],tests:c.tests||[],view:'board',tab:'board'});return;}
+    if(c){showOffline();set({circuits:c.circuits||[],tests:c.tests||[],rcds:c.rcds||[],view:'board',tab:'board'});return;}
     set({view:'error',error:'Failed to load board: '+e.message});
   }
 }
@@ -574,6 +586,45 @@ function generateReport(){
   setTimeout(go,400);
 }
 
+function rcdLastTest(rcdId){
+  return S.tests.filter(t=>t.rcd_id===rcdId).sort((a,b)=>new Date(b.test_date)-new Date(a.test_date))[0]||null;
+}
+function rcdStatusInfo(rcd){
+  const last=rcdLastTest(rcd.id);
+  const interval=rcd.test_interval_months||6;
+  if(!last||!last.test_date)return {key:'never',label:'Never tested',color:'#A32D2D',due:null,last:null};
+  const due=new Date(last.test_date);due.setMonth(due.getMonth()+interval);
+  const days=(due-new Date())/86400000;
+  if(days<0)return {key:'overdue',label:'Overdue',color:'#A32D2D',due,last};
+  if(days<30)return {key:'due',label:'Due soon',color:'#854F0B',due,last};
+  return {key:'ok',label:'Current',color:'#3B6D11',due,last};
+}
+function circuitsUnderRcd(id){return S.circuits.filter(c=>c.protected_by_rcd_id===id);}
+function rcdPolesLabel(p){return p==='three'?'3\u03c6':p==='single'?'1\u03c6':'\u2014';}
+function nextRcdName(){
+  const nums=(S.rcds||[]).map(r=>{const m=/RCD-(\d+)/i.exec(r.name||'');return m?parseInt(m[1]):0;});
+  let n=1;while(nums.indexOf(n)>=0)n++;return 'RCD-'+n;
+}
+function rcdsCardHtml(b){
+  const list=S.rcds||[];
+  let rows;
+  if(!list.length){
+    rows=`<div style="font-size:12px;color:#888;padding:4px 0;line-height:1.5">No shared RCDs yet. Add one if a single RCD protects a group of MCBs.</div>`;
+  }else{
+    rows=list.map(function(r){
+      const st=rcdStatusInfo(r);
+      const n=circuitsUnderRcd(r.id).length;
+      return `<div class="rcd-row" onclick="openEditRcd('${r.id}')">
+        <div class="rcd-row-main">
+          <div class="rcd-row-name">${esc(r.name||'RCD')}<span class="rcd-poles">${rcdPolesLabel(r.poles)}</span></div>
+          <div class="rcd-row-sub">${r.rating?esc(r.rating)+' \u00b7 ':''}protects ${n} circuit${n===1?'':'s'}${st.last?' \u00b7 last '+fmtDate(st.last.test_date):''}</div>
+        </div>
+        <span class="rcd-chip" style="background:${st.color}1a;color:${st.color}">${st.label}</span>
+      </div>`;
+    }).join('');
+  }
+  return `<div class="supply-card"><div class="supply-head"><div class="supply-title">\ud83d\udee1 RCDs (earth-leakage)</div><button class="supply-edit" onclick="openAddRcd()">+ Add RCD</button></div><div class="rcd-list">${rows}</div></div>`;
+}
 function supplyCardHtml(b){
   const rows=[];
   const st={single_phase:'Single phase',three_phase:'3-phase'}[b.supply_type];
@@ -608,6 +659,7 @@ function drawBoard(app){
 
   if(S.tab==='board'){
     h+=supplyCardHtml(b);
+    h+=rcdsCardHtml(b);
     const rcdN=S.circuits.filter(c=>c.has_rcd).length;
     if(rcdN)h+=`<button class="add-btn" style="width:calc(100% - 20px);margin:8px 10px 2px;justify-content:center" onclick="startRcdRun()">\u26a1 Test all RCDs (${rcdN})</button>`;
     if(rcdN)h+=`<button class="ghost-btn" style="width:calc(100% - 20px);margin:6px 10px 2px;justify-content:center" onclick="generateReport()">\ud83d\udcc4 Compliance report (PDF)</button>`;
@@ -974,6 +1026,41 @@ function drawModal(){
       <button class="primary-btn" id="m-save" onclick="saveSupply()">Save details</button>
       <button class="cancel-btn" onclick="closeModal()">Cancel</button>`;
   }
+  else if(S.modal==='addrcd'||S.modal==='editrcd'){
+    const ed=S.modal==='editrcd'?(S.rcds.find(r=>r.id===S._rcdEditId)||{}):null;
+    const nm=ed?(ed.name||''):nextRcdName();
+    const poles=ed?(ed.poles||'three'):'three';
+    const rating=ed?(ed.rating||''):'';
+    const iv=ed?(ed.test_interval_months||6):6;
+    body=`<div class="modal-title">${ed?'Edit RCD':'Add RCD'}</div>
+      <p style="font-size:12px;color:#888;margin-bottom:12px;line-height:1.5">A shared RCD provides earth-leakage protection to a group of MCB circuits. Test it once \u2014 all its circuits inherit the result.</p>
+      ${whoLine}
+      <label class="field-label">Name</label><input class="field-input" id="rd-name" value="${esc(nm)}" placeholder="RCD-1">
+      <label class="field-label">Poles</label>
+      <div class="seg" id="rd-poles-seg">
+        <button type="button" class="seg-btn ${poles==='single'?'on':''}" onclick="rdSetPoles(this,'single')">Single phase (1\u03c6)</button>
+        <button type="button" class="seg-btn ${poles==='three'?'on':''}" onclick="rdSetPoles(this,'three')">Three phase (3\u03c6)</button>
+      </div>
+      <input type="hidden" id="rd-poles" value="${poles}">
+      <label class="field-label">Rating (optional)</label><input class="field-input" id="rd-rating" value="${esc(rating)}" placeholder="e.g. 63A 30mA">
+      <label class="field-label">Test interval</label>
+      <select class="field-input" id="rd-interval">${[3,6,12,24].map(m=>`<option value="${m}"${m===iv?' selected':''}>${m} months</option>`).join('')}</select>
+      ${!loggedIn?pinField:''}
+      ${loggedIn?'<div class="err-msg" id="m-err"></div>':''}
+      <button class="primary-btn" id="m-save" onclick="saveRcdDevice()">${ed?'Save RCD':'Add RCD'}</button>
+      ${ed?`<button class="cancel-btn" style="color:#A32D2D" onclick="askDeleteRcd()">Delete this RCD</button>`:''}
+      <button class="cancel-btn" onclick="closeModal()">Cancel</button>`;
+  }
+  else if(S.modal==='delrcd'){
+    const r=S.rcds.find(x=>x.id===S._rcdEditId)||{};
+    body=`<div class="modal-title">Delete ${esc(r.name||'RCD')}?</div>
+      <p style="font-size:13px;color:#555;margin-bottom:14px;line-height:1.5">This RCD protects no circuits, so it's safe to remove. Its test history will be removed too.</p>
+      ${whoLine}
+      ${!loggedIn?pinField:''}
+      ${loggedIn?'<div class="err-msg" id="m-err"></div>':''}
+      <button class="primary-btn" id="m-save" style="background:#A32D2D;color:#fff" onclick="doDeleteRcd()">Delete RCD</button>
+      <button class="cancel-btn" onclick="closeModal()">Cancel</button>`;
+  }
 
   if(!body)return;
   const o=document.createElement('div');o.className='modal-overlay';
@@ -1152,6 +1239,46 @@ async function saveSupply(){
     S.selectedBoard=merged;S.boards=S.boards.map(b=>b.id===merged.id?merged:b);S.currentUser=user;S.modal=null;
     draw();showToast('✓ Supply details saved');
   }catch(e){if(btn)btn.disabled=false;const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Save failed: '+e.message;}}
+}
+function openAddRcd(){S._rcdEditId=null;openModal('addrcd');}
+function openEditRcd(id){S._rcdEditId=id;openModal('editrcd');}
+function rdSetPoles(btn,p){const h=document.getElementById('rd-poles');if(h)h.value=p;document.querySelectorAll('#rd-poles-seg .seg-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
+async function saveRcdDevice(){
+  const user=getPin();if(!user)return;
+  const btn=document.getElementById('m-save');if(btn)btn.disabled=true;
+  const name=(document.getElementById('rd-name')?.value||'').trim()||nextRcdName();
+  const poles=document.getElementById('rd-poles')?.value||'three';
+  const rating=(document.getElementById('rd-rating')?.value||'').trim()||null;
+  const interval=parseInt(document.getElementById('rd-interval')?.value)||6;
+  const editing=S.modal==='editrcd';
+  try{
+    if(editing){
+      const id=S._rcdEditId;const data={name,poles,rating,test_interval_months:interval};
+      const res=await sb('rcds?id=eq.'+id,{method:'PATCH',body:JSON.stringify(data)});
+      const u=Array.isArray(res)?res[0]:res;const merged=Object.assign({},S.rcds.find(r=>r.id===id),u||{},data);
+      S.rcds=S.rcds.map(r=>r.id===id?merged:r);showToast('\u2713 RCD saved');
+    }else{
+      const data={board_id:S.selectedBoard.id,name,poles,rating,test_interval_months:interval};
+      const res=await sb('rcds',{method:'POST',body:JSON.stringify(data)});
+      const nr=Array.isArray(res)?res[0]:res;if(nr)S.rcds=[...S.rcds,nr];showToast('\u2713 RCD added');
+    }
+    S.currentUser=user;S.modal=null;draw();
+  }catch(e){if(btn)btn.disabled=false;const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Save failed: '+e.message;}}
+}
+function askDeleteRcd(){
+  const id=S._rcdEditId;const n=circuitsUnderRcd(id).length;
+  if(n>0){const msg=n+' circuit'+(n===1?' is':'s are')+' protected by this RCD \u2014 reassign '+(n===1?'it':'them')+' first.';const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent=msg;}showToast(msg);return;}
+  S.modal='delrcd';drawModal();
+}
+async function doDeleteRcd(){
+  const user=getPin();if(!user)return;
+  const id=S._rcdEditId;const btn=document.getElementById('m-save');if(btn)btn.disabled=true;
+  try{
+    await sb('rcd_tests?rcd_id=eq.'+id,{method:'DELETE'});
+    await sb('rcds?id=eq.'+id,{method:'DELETE'});
+    S.rcds=S.rcds.filter(r=>r.id!==id);S.tests=S.tests.filter(t=>t.rcd_id!==id);
+    S.currentUser=user;S.modal=null;draw();showToast('\u2713 RCD deleted');
+  }catch(e){if(btn)btn.disabled=false;const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Delete failed: '+e.message;}}
 }
 async function saveRCD(){
   const user=getPin();if(!user)return;
