@@ -348,13 +348,12 @@ function phaseColor(ph){
 }
 
 function statusColor(c){
-  if(!c.has_rcd)return null;
-  const last=S.tests.filter(t=>t.circuit_id===c.id).sort((a,b)=>new Date(b.test_date)-new Date(a.test_date))[0];
-  if(!last)return'red';
-  const next=new Date(last.test_date);
-  next.setMonth(next.getMonth()+(c.test_interval_months||6));
-  const diff=(next-new Date())/86400000;
-  return diff<0?'red':diff<30?'amber':'green';
+  const si=circuitStatusInfo(c);
+  if(si.key==='unprot')return null;
+  if(si.key==='never'||si.key==='overdue')return'red';
+  if(si.key==='due')return'amber';
+  if(si.key==='ok')return'green';
+  return null;
 }
 // ── Test all RCDs guided run (V3.25) ──
 let _rcdOverlay=null;
@@ -589,15 +588,25 @@ function generateReport(){
 function rcdLastTest(rcdId){
   return S.tests.filter(t=>t.rcd_id===rcdId).sort((a,b)=>new Date(b.test_date)-new Date(a.test_date))[0]||null;
 }
-function rcdStatusInfo(rcd){
-  const last=rcdLastTest(rcd.id);
-  const interval=rcd.test_interval_months||6;
+function statusFromTest(last,interval){
   if(!last||!last.test_date)return {key:'never',label:'Never tested',color:'#A32D2D',due:null,last:null};
-  const due=new Date(last.test_date);due.setMonth(due.getMonth()+interval);
+  const due=new Date(last.test_date);due.setMonth(due.getMonth()+(interval||6));
   const days=(due-new Date())/86400000;
   if(days<0)return {key:'overdue',label:'Overdue',color:'#A32D2D',due,last};
   if(days<30)return {key:'due',label:'Due soon',color:'#854F0B',due,last};
   return {key:'ok',label:'Current',color:'#3B6D11',due,last};
+}
+function rcdStatusInfo(rcd){return statusFromTest(rcdLastTest(rcd.id),rcd.test_interval_months||6);}
+function circuitStatusInfo(c){
+  if(c.device_type==='RCBO'||(!c.device_type&&c.has_rcd)){
+    const last=S.tests.filter(t=>t.circuit_id===c.id).sort((a,b)=>new Date(b.test_date)-new Date(a.test_date))[0]||null;
+    return statusFromTest(last,c.test_interval_months||6);
+  }
+  if(c.device_type==='MCB'&&c.protected_by_rcd_id){
+    const rcd=(S.rcds||[]).find(r=>r.id===c.protected_by_rcd_id);
+    if(rcd){const si=rcdStatusInfo(rcd);si.inherited=true;si.rcd=rcd;return si;}
+  }
+  return {key:'unprot',label:'Unprotected',color:null,due:null,last:null};
 }
 function circuitsUnderRcd(id){return S.circuits.filter(c=>c.protected_by_rcd_id===id);}
 function rcdPolesLabel(p){return p==='three'?'3\u03c6':p==='single'?'1\u03c6':'\u2014';}
