@@ -358,64 +358,85 @@ function statusColor(c){
 // ── Test all RCDs guided run (V3.25) ──
 let _rcdOverlay=null;
 function ensureRcdOverlay(){if(_rcdOverlay&&_rcdOverlay.parentNode)return _rcdOverlay;const d=document.createElement('div');d.className='rcd-overlay';d.id='rcd-overlay';document.body.appendChild(d);_rcdOverlay=d;return d;}
-function rcdRunCircuits(onlyDue){let list=S.circuits.filter(c=>c.has_rcd);if(onlyDue)list=list.filter(c=>{const st=statusColor(c);return st==='red'||st==='amber';});return list.slice().sort((a,b)=>(parseInt(a.number)||0)-(parseInt(b.number)||0));}
+function rcdDeviceList(){
+  const out=[];
+  (S.rcds||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).forEach(function(r){
+    const prot=circuitsUnderRcd(r.id).map(c=>c.number);
+    out.push({kind:'RCD',id:r.id,target:'rcd_id',title:(r.name||'RCD')+' ('+rcdPolesLabel(r.poles)+')',subtitle:(r.rating?esc(r.rating)+' · ':'')+(prot.length?'protects '+prot.join(', '):'no circuits yet'),interval:r.test_interval_months||6,last:rcdLastTest(r.id),tag:(r.name||'RCD')});
+  });
+  S.circuits.filter(c=>c.device_type==='RCBO'||(!c.device_type&&c.has_rcd)).slice().sort((a,b)=>(parseInt(a.number)||0)-(parseInt(b.number)||0)).forEach(function(c){
+    out.push({kind:'RCBO',id:c.id,target:'circuit_id',title:'Circuit '+(c.number)+' — '+(c.label||'Unlabelled'),subtitle:'RCBO'+(c.device_rating?' · '+c.device_rating:''),interval:c.test_interval_months||6,last:S.tests.filter(t=>t.circuit_id===c.id).sort((a,b)=>new Date(b.test_date)-new Date(a.test_date))[0]||null,tag:'C'+(c.number)});
+  });
+  return out;
+}
+function rcdRunDevices(onlyDue){let list=rcdDeviceList();if(onlyDue)list=list.filter(function(d){const k=statusFromTest(d.last,d.interval).key;return k==='never'||k==='overdue'||k==='due';});return list;}
+function rcdDeviceCount(){return rcdDeviceList().length;}
 function startRcdRun(){
-  if(!S.circuits.filter(c=>c.has_rcd).length){showToast('No RCD circuits on this board');return;}
+  if(!rcdDeviceCount()){showToast('No RCDs or RCBOs on this board');return;}
   requirePin(function(){S.rcdRun={phase:'scope',onlyDue:false,queue:[],idx:0,results:[],user:S.currentUser?S.currentUser.name:'—'};rcdRunRender();});
 }
 function rcdSetScope(onlyDue){if(S.rcdRun){S.rcdRun.onlyDue=onlyDue;rcdRunRender();}}
-function rcdStartRun(){const r=S.rcdRun;if(!r)return;r.queue=rcdRunCircuits(r.onlyDue);if(!r.queue.length){showToast('Nothing to test');return;}r.phase='step';r.idx=0;r.results=[];window._rrResult='pass';rcdRunRender();}
+function rcdStartRun(){const r=S.rcdRun;if(!r)return;r.queue=rcdRunDevices(r.onlyDue);if(!r.queue.length){showToast('Nothing to test');return;}r.phase='step';r.idx=0;r.results=[];window._rrResult='pass';rcdRunRender();}
 function rcdSetResult(res){window._rrResult=res;['pass','fail'].forEach(function(x){const el=document.getElementById('rr-'+x);if(el)el.classList.toggle('sel',x===res);});}
 async function rcdLogNext(){
-  const r=S.rcdRun;if(!r)return;const c=r.queue[r.idx];
+  const r=S.rcdRun;if(!r)return;const dev=r.queue[r.idx];
   const ms=document.getElementById('rr-ms')?document.getElementById('rr-ms').value:'';
   const result=window._rrResult||'pass';
   const note=(document.getElementById('rr-note')?document.getElementById('rr-note').value:'')||null;
-  const data={circuit_id:c.id,test_date:new Date().toISOString().split('T')[0],trip_time_ms:ms?parseFloat(ms):null,result:result,tested_by:r.user,notes:note};
+  const data={test_date:new Date().toISOString().split('T')[0],trip_time_ms:ms?parseFloat(ms):null,result:result,tested_by:r.user,notes:note};
+  data[dev.target]=dev.id;
   try{const res=await sb('rcd_tests',{method:'POST',body:JSON.stringify(data)});const nt=Array.isArray(res)?res[0]:res;if(nt)S.tests=[nt,...S.tests];}catch(e){}
-  r.results.push({number:c.number,label:c.label,result:result,ms:ms?parseFloat(ms):null});
+  r.results.push({tag:dev.tag,title:dev.title,result:result,ms:ms?parseFloat(ms):null});
   r.idx++;window._rrResult='pass';
   if(r.idx>=r.queue.length)r.phase='done';
   rcdRunRender();
 }
-function rcdSkip(){const r=S.rcdRun;if(!r)return;const c=r.queue[r.idx];r.results.push({number:c.number,label:c.label,result:'skipped',ms:null});r.idx++;window._rrResult='pass';if(r.idx>=r.queue.length)r.phase='done';rcdRunRender();}
+function rcdSkip(){const r=S.rcdRun;if(!r)return;const dev=r.queue[r.idx];r.results.push({tag:dev.tag,title:dev.title,result:'skipped',ms:null});r.idx++;window._rrResult='pass';if(r.idx>=r.queue.length)r.phase='done';rcdRunRender();}
 function rcdClose(){S.rcdRun=null;if(_rcdOverlay){_rcdOverlay.remove();_rcdOverlay=null;}draw();}
+function openRcdTest(){openModal('rcdtest');}
+async function saveRcdTest(){
+  const user=getPin();if(!user)return;const btn=document.getElementById('m-save');if(btn)btn.disabled=true;
+  const ms=document.getElementById('rt-ms')?.value;
+  const data={rcd_id:S._rcdEditId,test_date:document.getElementById('rt-date')?.value,trip_time_ms:ms?parseFloat(ms):null,result:document.getElementById('rt-result')?.value||'pass',tested_by:user.name,notes:document.getElementById('rt-note')?.value||null};
+  try{const res=await sb('rcd_tests',{method:'POST',body:JSON.stringify(data)});const nt=Array.isArray(res)?res[0]:res;if(nt)S.tests=[nt,...S.tests];S.currentUser=user;S.modal=null;draw();showToast('✓ RCD test logged');}
+  catch(e){if(btn)btn.disabled=false;const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Save failed: '+e.message;}}
+}
 function rcdRunRender(){
   const r=S.rcdRun;if(!r){if(_rcdOverlay){_rcdOverlay.remove();_rcdOverlay=null;}return;}
   const o=ensureRcdOverlay();const board=S.selectedBoard||{};
   if(r.phase==='scope'){
-    const all=rcdRunCircuits(false).length,due=rcdRunCircuits(true).length,cur=r.onlyDue?due:all;
-    o.innerHTML=`<div class="rcd-head"><button class="back-btn" style="padding:0 0 6px;color:#f0a500" onclick="rcdClose()">\u2190 Cancel</button><div class="rcd-title">\u26a1 Test all RCDs</div><div class="rcd-sub">${esc(board.name||'')}</div></div>
-      <div class="rcd-body"><div class="section-label" style="margin-top:0">Which RCDs?</div>
-        <div style="display:flex;gap:8px;margin-bottom:16px">
-          <div class="pri-opt ${!r.onlyDue?'sel':''}" onclick="rcdSetScope(false)">All RCDs<br><span style="font-size:17px;font-weight:700">${all}</span></div>
+    const all=rcdRunDevices(false).length,due=rcdRunDevices(true).length,cur=r.onlyDue?due:all;
+    o.innerHTML=`<div class="rcd-head"><button class="back-btn" style="padding:0 0 6px;color:#f0a500" onclick="rcdClose()">← Cancel</button><div class="rcd-title">⚡ Test all RCDs</div><div class="rcd-sub">${esc(board.name||'')}</div></div>
+      <div class="rcd-body"><div class="section-label" style="margin-top:0">Which devices?</div>
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <div class="pri-opt ${!r.onlyDue?'sel':''}" onclick="rcdSetScope(false)">All devices<br><span style="font-size:17px;font-weight:700">${all}</span></div>
           <div class="pri-opt ${r.onlyDue?'sel':''}" onclick="rcdSetScope(true)">Due / overdue<br><span style="font-size:17px;font-weight:700">${due}</span></div>
         </div>
-        <button class="primary-btn" ${cur?'':'disabled style="opacity:.5"'} onclick="rcdStartRun()">${cur?('Start testing '+cur+' circuit'+(cur>1?'s':'')+' \u2192'):'Nothing to test'}</button>
+        <div class="info-note" style="margin-bottom:14px">RCBOs + shared RCDs. Testing an RCD covers all its MCBs.</div>
+        <button class="primary-btn" ${cur?'':'disabled style="opacity:.5"'} onclick="rcdStartRun()">${cur?('Start testing '+cur+' device'+(cur>1?'s':'')+' →'):'Nothing to test'}</button>
         <button class="cancel-btn" onclick="rcdClose()">Cancel</button></div>`;
   } else if(r.phase==='step'){
-    const c=r.queue[r.idx],total=r.queue.length,pct=Math.round((r.idx/total)*100);
-    const myTests=S.tests.filter(t=>t.circuit_id===c.id).sort((a,b)=>new Date(b.test_date)-new Date(a.test_date)),last=myTests[0];
-    o.innerHTML=`<div class="rcd-head"><button class="back-btn" style="padding:0 0 6px;color:#f0a500" onclick="rcdClose()">\u2715 Exit run</button><div class="rcd-title">Circuit ${r.idx+1} of ${total}</div><div class="rcd-progress"><div style="width:${pct}%"></div></div></div>
+    const dev=r.queue[r.idx],total=r.queue.length,pct=Math.round((r.idx/total)*100);const last=dev.last;
+    o.innerHTML=`<div class="rcd-head"><button class="back-btn" style="padding:0 0 6px;color:#f0a500" onclick="rcdClose()">✕ Exit run</button><div class="rcd-title">Device ${r.idx+1} of ${total}</div><div class="rcd-progress"><div style="width:${pct}%"></div></div></div>
       <div class="rcd-body">
-        <div class="card"><div style="font-size:17px;font-weight:700;color:#111">Circuit ${esc(c.number)} \u2014 ${esc(c.label||'Unlabelled')}</div>
-          <div style="font-size:12px;color:#888;margin-top:2px">${esc(c.device_type||'\u2014')}</div>
-          <div style="font-size:11px;color:#aaa;margin-top:6px">Last test: ${last?fmtDate(last.test_date):'never'} \u00b7 interval ${(c.test_interval_months||6)} mo</div></div>
+        <div class="card"><div style="font-size:17px;font-weight:700;color:#111">${esc(dev.title)}</div>
+          <div style="font-size:12px;color:#888;margin-top:2px">${esc(dev.subtitle)}</div>
+          <div style="font-size:11px;color:#aaa;margin-top:6px">Last test: ${last?fmtDate(last.test_date):'never'} · interval ${dev.interval} mo</div></div>
         <label class="field-label">Trip time (ms)</label>
         <input class="field-input" id="rr-ms" type="number" inputmode="decimal" placeholder="e.g. 18">
         <label class="field-label" style="margin-bottom:6px">Result</label>
-        <div style="display:flex;gap:8px;margin-bottom:12px"><div class="pri-opt sel" id="rr-pass" onclick="rcdSetResult('pass')">\u2713 Pass</div><div class="pri-opt" id="rr-fail" onclick="rcdSetResult('fail')">\u2715 Fail</div></div>
+        <div style="display:flex;gap:8px;margin-bottom:12px"><div class="pri-opt sel" id="rr-pass" onclick="rcdSetResult('pass')">✓ Pass</div><div class="pri-opt" id="rr-fail" onclick="rcdSetResult('fail')">✕ Fail</div></div>
         <label class="field-label">Note (optional)</label>
-        <input class="field-input" id="rr-note" placeholder="Any observations\u2026">
-        <button class="primary-btn" onclick="rcdLogNext()">${r.idx+1>=total?'Log & finish':'Log & next \u2192'}</button>
+        <input class="field-input" id="rr-note" placeholder="Any observations…">
+        <button class="primary-btn" onclick="rcdLogNext()">${r.idx+1>=total?'Log & finish':'Log & next →'}</button>
         <button class="ghost-btn" style="width:100%;margin-top:8px" onclick="rcdSkip()">Skip this one</button></div>`;
     setTimeout(function(){const el=document.getElementById('rr-ms');if(el)el.focus();},50);
   } else {
     const logged=r.results.filter(x=>x.result!=='skipped'),pass=logged.filter(x=>x.result==='pass').length,fail=logged.filter(x=>x.result==='fail').length,skip=r.results.filter(x=>x.result==='skipped').length;
-    o.innerHTML=`<div class="rcd-head"><div class="rcd-title">\u2713 Run complete</div><div class="rcd-sub">${esc(board.name||'')}</div></div>
-      <div class="rcd-body"><div class="card" style="text-align:center;padding:18px"><div style="font-size:15px;font-weight:700">${logged.length} tested</div><div style="font-size:13px;color:#555;margin-top:4px">${pass} passed${fail?' \u00b7 '+fail+' failed':''}${skip?' \u00b7 '+skip+' skipped':''}</div></div>
+    o.innerHTML=`<div class="rcd-head"><div class="rcd-title">✓ Run complete</div><div class="rcd-sub">${esc(board.name||'')}</div></div>
+      <div class="rcd-body"><div class="card" style="text-align:center;padding:18px"><div style="font-size:15px;font-weight:700">${logged.length} tested</div><div style="font-size:13px;color:#555;margin-top:4px">${pass} passed${fail?' · '+fail+' failed':''}${skip?' · '+skip+' skipped':''}</div></div>
         <div class="section-label">Results</div>
-        <div class="card">${r.results.map(function(x,i){return '<div class="info-row"'+(i===r.results.length-1?' style="border-bottom:none"':'')+'><span class="info-label">C'+esc(x.number)+' '+esc(x.label||'')+'</span><span class="info-val" style="color:'+(x.result==='pass'?'#3B6D11':x.result==='fail'?'#A32D2D':'#999')+'">'+(x.result==='skipped'?'skipped':(x.result.toUpperCase()+(x.ms!=null?' \u00b7 '+x.ms+'ms':'')))+'</span></div>';}).join('')}</div>
+        <div class="card">${r.results.map(function(x,i){return '<div class="info-row"'+(i===r.results.length-1?' style="border-bottom:none"':'')+'><span class="info-label">'+esc(x.tag)+'</span><span class="info-val" style="color:'+(x.result==='pass'?'#3B6D11':x.result==='fail'?'#A32D2D':'#999')+'">'+(x.result==='skipped'?'skipped':(x.result.toUpperCase()+(x.ms!=null?' · '+x.ms+'ms':'')))+'</span></div>';}).join('')}</div>
         <button class="primary-btn" onclick="rcdClose()">Done</button></div>`;
   }
 }
@@ -735,7 +756,7 @@ function drawBoard(app){
   if(S.tab==='board'){
     h+=supplyCardHtml(b);
     h+=rcdsCardHtml(b);
-    const rcdN=S.circuits.filter(c=>c.has_rcd).length;
+    const rcdN=rcdDeviceCount();
     if(rcdN)h+=`<button class="add-btn" style="width:calc(100% - 20px);margin:8px 10px 2px;justify-content:center" onclick="startRcdRun()">\u26a1 Test all RCDs (${rcdN})</button>`;
     if(rcdN)h+=`<button class="ghost-btn" style="width:calc(100% - 20px);margin:6px 10px 2px;justify-content:center" onclick="generateReport()">\ud83d\udcc4 Compliance report (PDF)</button>`;
     // Phase legend for 3-phase
@@ -1116,6 +1137,7 @@ function drawModal(){
       <label class="field-label">Rating (optional)</label><input class="field-input" id="rd-rating" value="${esc(rating)}" placeholder="e.g. 63A 30mA">
       <label class="field-label">Test interval</label>
       <select class="field-input" id="rd-interval">${[3,6,12,24].map(m=>`<option value="${m}"${m===iv?' selected':''}>${m} months</option>`).join('')}</select>
+      ${ed?'<button class="add-btn" style="width:100%;justify-content:center;margin-bottom:8px" onclick="openRcdTest()">⚡ Log a test</button>':''}
       ${!loggedIn?pinField:''}
       ${loggedIn?'<div class="err-msg" id="m-err"></div>':''}
       <button class="primary-btn" id="m-save" onclick="saveRcdDevice()">${ed?'Save RCD':'Add RCD'}</button>
@@ -1131,6 +1153,20 @@ function drawModal(){
       ${loggedIn?'<div class="err-msg" id="m-err"></div>':''}
       <button class="primary-btn" id="m-save" style="background:#A32D2D;color:#fff" onclick="doDeleteRcd()">Delete RCD</button>
       <button class="cancel-btn" onclick="closeModal()">Cancel</button>`;
+  }
+  else if(S.modal==='rcdtest'){
+    const r=S.rcds.find(x=>x.id===S._rcdEditId)||{};
+    const prot=circuitsUnderRcd(r.id).map(c=>c.number);
+    const today=new Date().toISOString().split('T')[0];
+    body=`<div class="modal-title">Log RCD test</div>
+      <p style="font-size:12px;color:#888;margin-bottom:14px">${esc(r.name||'RCD')} (${rcdPolesLabel(r.poles)})${prot.length?' · protects '+prot.join(', '):''}</p>${whoLine}
+      <label class="field-label">Date</label><input class="field-input" id="rt-date" type="date" value="${today}">
+      <label class="field-label">Trip time (ms)</label><input class="field-input" id="rt-ms" type="number" inputmode="decimal" placeholder="e.g. 18">
+      <label class="field-label">Result</label><select class="field-input" id="rt-result"><option value="pass">Pass (&lt;300ms)</option><option value="fail">Fail</option></select>
+      <label class="field-label">Note (optional)</label><textarea class="field-textarea" id="rt-note" placeholder="Any observations…"></textarea>
+      ${!loggedIn?pinField:''}
+      <button class="primary-btn" id="m-save" onclick="saveRcdTest()">Save test</button>
+      <button class="cancel-btn" onclick="openModal('editrcd')">Cancel</button>`;
   }
 
   if(!body)return;
