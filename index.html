@@ -394,6 +394,7 @@ async function rcdLogNext(){
 function rcdSkip(){const r=S.rcdRun;if(!r)return;const dev=r.queue[r.idx];r.results.push({tag:dev.tag,title:dev.title,result:'skipped',ms:null});r.idx++;window._rrResult='pass';if(r.idx>=r.queue.length)r.phase='done';rcdRunRender();}
 function rcdClose(){S.rcdRun=null;if(_rcdOverlay){_rcdOverlay.remove();_rcdOverlay=null;}draw();}
 function openRcdTest(){openModal('rcdtest');}
+function openRcdTestFrom(id){S._rcdEditId=id;openModal('rcdtest');}
 async function saveRcdTest(){
   const user=getPin();if(!user)return;const btn=document.getElementById('m-save');if(btn)btn.disabled=true;
   const ms=document.getElementById('rt-ms')?.value;
@@ -973,8 +974,26 @@ function drawCircuit(app){
     </div>`;
     h+=`<button class="ghost-btn" style="width:100%;margin-top:8px;justify-content:center;${c.isolated?'color:#3B6D11;border-color:#cfe3bd':'color:#A32D2D;border-color:#f3cccc'}" onclick="openModal('${c.isolated?'unisolate':'isolate'}')">${c.isolated?'🔓 Remove isolation':'🔒 Mark as isolated'}</button>`;
   }else{
-    if(!c.has_rcd){
-      h+=`<div class="card" style="text-align:center;padding:28px"><p style="font-size:13px;color:#888;margin-bottom:14px">No RCD protection on this circuit</p><button class="add-btn" style="margin:0 auto;justify-content:center" onclick="openEditCircuit()">Enable RCD tracking</button></div>`;
+    const isRcbo=c.device_type==='RCBO'||(!c.device_type&&c.has_rcd);
+    const protRcd=(c.device_type==='MCB'&&c.protected_by_rcd_id)?(S.rcds||[]).find(r=>r.id===c.protected_by_rcd_id):null;
+    if(c.device_type==='MCB'&&protRcd){
+      const si=rcdStatusInfo(protRcd);
+      const rtests=S.tests.filter(t=>t.rcd_id===protRcd.id).sort((a,b)=>new Date(b.test_date)-new Date(a.test_date));
+      const rlast=rtests[0];let rnext=null;if(rlast&&rlast.test_date){rnext=new Date(rlast.test_date);rnext.setMonth(rnext.getMonth()+(protRcd.test_interval_months||6));}
+      h+=`<div class="card" style="border-left:3px solid ${si.color||'#999'}">
+        <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.6px">Protected by</div><span class="rcd-chip" style="background:${(si.color||'#999')}1a;color:${si.color||'#999'}">${si.label}</span></div>
+        <div style="font-size:17px;font-weight:700;color:#111;margin-top:3px">${esc(protRcd.name||'RCD')} <span style="font-size:12px;font-weight:700;color:#2980b9">${rcdPolesLabel(protRcd.poles)}</span></div>
+        ${protRcd.rating?`<div style="font-size:12px;color:#888;margin-top:1px">${esc(protRcd.rating)}</div>`:''}
+        <div class="info-row" style="margin-top:8px"><span class="info-label">Last test</span><span class="info-val">${rlast?fmtDate(rlast.test_date):'Never tested'}</span></div>
+        <div class="info-row" style="border-bottom:none"><span class="info-label">Next due</span><span class="info-val">${rnext?fmtDate(rnext):'\u2014'}</span></div>
+      </div>
+      <div class="info-note" style="margin-bottom:10px">This MCB inherits its RCD's status \u2014 test the RCD, not the circuit.</div>
+      <button class="add-btn" style="width:100%;justify-content:center;margin-bottom:14px" onclick="openRcdTestFrom('${protRcd.id}')">\u26a1 Test ${esc(protRcd.name||'RCD')}</button>
+      <div class="section-label">RCD test history</div>`;
+      if(!rtests.length){h+=`<div class="card" style="text-align:center;color:#aaa;font-size:13px;padding:24px">No tests logged yet</div>`;}
+      else h+=`<div class="card">${rtests.map((t,i)=>`<div class="test-row"${i===rtests.length-1?' style="border-bottom:none"':''}><span style="color:#888;width:80px;flex-shrink:0">${fmtDate(t.test_date)}</span><span style="font-weight:600;width:50px;flex-shrink:0">${t.trip_time_ms!=null?t.trip_time_ms+'ms':'\u2014'}</span><span style="flex:1;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.tested_by||'\u2014')}</span><span style="font-weight:700;font-size:10px;color:${t.result==='pass'?'#3B6D11':'#A32D2D'};flex-shrink:0">${(t.result||'').toUpperCase()}</span></div>`).join('')}</div>`;
+    } else if(!isRcbo){
+      h+=`<div class="card" style="text-align:center;padding:24px"><p style="font-size:13px;color:#555;margin-bottom:6px">This circuit is an <strong>MCB</strong> with no RCD assigned.</p><p style="font-size:12px;color:#aaa;margin-bottom:14px">Assign a shared RCD so it inherits earth-leakage test status.</p><button class="add-btn" style="margin:0 auto;justify-content:center" onclick="openEditCircuit()">Assign an RCD</button></div>`;
     }else{
       const tf=[
         ['Test interval',(c.test_interval_months||6)+' months',''],
@@ -1164,7 +1183,7 @@ function drawModal(){
       <label class="field-label">Note (optional)</label><textarea class="field-textarea" id="rt-note" placeholder="Any observations…"></textarea>
       ${!loggedIn?pinField:''}
       <button class="primary-btn" id="m-save" onclick="saveRcdTest()">Save test</button>
-      <button class="cancel-btn" onclick="openModal('editrcd')">Cancel</button>`;
+      <button class="cancel-btn" onclick="closeModal()">Cancel</button>`;
   }
 
   if(!body)return;
