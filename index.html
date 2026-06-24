@@ -701,6 +701,7 @@ function readCircuitDraft(p){
   const g=id=>document.getElementById(id);
   const d={p:p,kind:(p==='ac'?'add':'edit')};
   d.label=g(p+'-label')?.value||'';
+  d.nl=g(p+'-nl')?.value||'';
   d.devtype=g(p+'-devtype')?.value||'MCB';
   d.rating=g(p+'-rating')?.value||'';
   d.cable=g(p+'-cable')?.value||'';
@@ -960,8 +961,9 @@ function drawCircuit(app){
   if(S.circuitTab==='info'){
     const fields=[
       ['Circuit number',esc(c.number||'—')],
+      ['Neutral link',esc(c.neutral_link||'—')],
       ['Phase',phLabel],
-      ['Protection device',esc(c.device_type||'—')],
+      ['Protection device',esc((c.device_type||'—')+(c.device_rating?' '+c.device_rating:''))],
       ['Cable size',esc(c.cable_size||'—')],
       ['Install date',fmtDate(c.install_date)],
       ['Last edited by',c.last_edited_by?esc(c.last_edited_by)+(c.last_edited_at?' · '+fmtDate(c.last_edited_at):''):'—']
@@ -1046,11 +1048,13 @@ function drawModal(){
     </div>
     ${whoLine}
     <label class="field-label">Label *</label><input class="field-input" id="ac-label" value="${dft?esc(dft.label):''}" placeholder="e.g. Kitchen Appliances">
+    <label class="field-label">Neutral link no. *</label><input class="field-input" id="ac-nl" value="${dft?esc(dft.nl):''}" inputmode="numeric" placeholder="e.g. 12">
     ${deviceSectionHtml('ac',dt,rating,protBy,6,false)}
     <label class="field-label">Cable size</label><input class="field-input" id="ac-cable" value="${dft?esc(dft.cable):''}" placeholder="e.g. 2.5mm² TPS">
     <label class="field-label">Install date</label><input class="field-input" id="ac-date" type="date" value="${dft?esc(dft.date):''}">
     <label class="field-label">Notes</label><textarea class="field-textarea" id="ac-notes" placeholder="Any notes about this circuit…">${dft?esc(dft.notes):''}</textarea>
     ${!loggedIn?pinField:''}
+    ${loggedIn?'<div class="err-msg" id="m-err"></div>':''}
     <button class="primary-btn" id="m-save" onclick="saveAddCircuit()">Add circuit</button>
     <button class="cancel-btn" onclick="closeModal()">Cancel</button>`;
   }
@@ -1060,10 +1064,12 @@ function drawModal(){
     const rating=dft?dft.rating:(c.device_rating||'');const protBy=dft?dft.protby:(c.protected_by_rcd_id||'');
     body=`<div class="modal-title">Edit — Circuit ${esc(c.number)}</div>${whoLine}
       <label class="field-label">Label</label><input class="field-input" id="e-label" value="${dft?esc(dft.label):esc(c.label||'')}" placeholder="e.g. Kitchen Appliances">
+      <label class="field-label">Neutral link no. *</label><input class="field-input" id="e-nl" value="${dft?esc(dft.nl):esc(c.neutral_link||'')}" inputmode="numeric" placeholder="e.g. 12">
       ${deviceSectionHtml('e',dt,rating,protBy,c.test_interval_months||6,true)}
       <label class="field-label">Cable size</label><input class="field-input" id="e-cable" value="${dft?esc(dft.cable):esc(c.cable_size||'')}" placeholder="e.g. 2.5mm² TPS">
       <label class="field-label">Notes</label><textarea class="field-textarea" id="e-notes" placeholder="Any notes…">${dft?esc(dft.notes):esc(c.notes||'')}</textarea>
       ${!loggedIn?pinField:''}
+      ${loggedIn?'<div class="err-msg" id="m-err"></div>':''}
       <button class="primary-btn" id="m-save" onclick="saveEdit()">Save changes</button>
       <button class="cancel-btn" onclick="closeModal()">Cancel</button>
       <div style="margin-top:16px;padding-top:16px;border-top:0.5px solid #eee">
@@ -1222,6 +1228,8 @@ async function saveAddCircuit(){
     if(err){err.style.display='block';err.textContent='Please enter a label for this circuit.';}
     return;
   }
+  const nl=(document.getElementById('ac-nl')?.value||'').trim();
+  if(!nl){const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Please enter the neutral link number.';}showToast('Enter the neutral link number');return;}
   const btn=document.getElementById('m-save');if(btn)btn.disabled=true;
   const deviceType=document.getElementById('ac-devtype')?.value||'MCB';
   let protBy=document.getElementById('ac-protby')?.value||'';if(protBy==='__add__')protBy='';
@@ -1230,6 +1238,7 @@ async function saveAddCircuit(){
     board_id:S.selectedBoard.id,
     number:String(S._addSlot),
     label,
+    neutral_link:nl,
     device_type:deviceType,
     device_rating:(document.getElementById('ac-rating')?.value||'').trim()||null,
     protected_by_rcd_id:deviceType==='MCB'?(protBy||null):null,
@@ -1323,11 +1332,13 @@ async function saveArchive_fromList(id,name){
 
 async function saveEdit(){
   const user=getPin();if(!user)return;
+  const enl=(document.getElementById('e-nl')?.value||'').trim();
+  if(!enl){const err=document.getElementById('m-err');if(err){err.style.display='block';err.textContent='Please enter the neutral link number.';}showToast('Enter the neutral link number');return;}
   const btn=document.getElementById('m-save');if(btn)btn.disabled=true;
   const eType=document.getElementById('e-devtype')?.value||'MCB';
   let eProt=document.getElementById('e-protby')?.value||'';if(eProt==='__add__')eProt='';
   const eIsProt=(eType==='RCBO')||(eType==='MCB'&&!!eProt);
-  const data={label:document.getElementById('e-label')?.value||null,device_type:eType,device_rating:(document.getElementById('e-rating')?.value||'').trim()||null,protected_by_rcd_id:eType==='MCB'?(eProt||null):null,cable_size:document.getElementById('e-cable')?.value||null,notes:document.getElementById('e-notes')?.value||null,has_rcd:eIsProt,test_interval_months:eType==='RCBO'?(parseInt(document.getElementById('e-interval')?.value)||6):6,last_edited_by:user.name,last_edited_at:new Date().toISOString()};
+  const data={label:document.getElementById('e-label')?.value||null,neutral_link:enl,device_type:eType,device_rating:(document.getElementById('e-rating')?.value||'').trim()||null,protected_by_rcd_id:eType==='MCB'?(eProt||null):null,cable_size:document.getElementById('e-cable')?.value||null,notes:document.getElementById('e-notes')?.value||null,has_rcd:eIsProt,test_interval_months:eType==='RCBO'?(parseInt(document.getElementById('e-interval')?.value)||6):6,last_edited_by:user.name,last_edited_at:new Date().toISOString()};
   try{
     const res=await sb(`circuits?id=eq.${S.selectedCircuit.id}`,{method:'PATCH',body:JSON.stringify(data)});
     const updated=Array.isArray(res)?res[0]:res;
