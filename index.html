@@ -376,14 +376,14 @@ function startRcdRun(){
   requirePin(function(){S.rcdRun={phase:'scope',onlyDue:false,queue:[],idx:0,results:[],user:S.currentUser?S.currentUser.name:'—'};rcdRunRender();});
 }
 function rcdSetScope(onlyDue){if(S.rcdRun){S.rcdRun.onlyDue=onlyDue;rcdRunRender();}}
-function rcdStartRun(){const r=S.rcdRun;if(!r)return;r.queue=rcdRunDevices(r.onlyDue);if(!r.queue.length){showToast('Nothing to test');return;}r.phase='step';r.idx=0;r.results=[];window._rrResult='pass';rcdRunRender();}
+function rcdStartRun(){const r=S.rcdRun;if(!r)return;r.testDate=(document.getElementById('rr-date')||{}).value||new Date().toISOString().split('T')[0];r.queue=rcdRunDevices(r.onlyDue);if(!r.queue.length){showToast('Nothing to test');return;}r.phase='step';r.idx=0;r.results=[];window._rrResult='pass';rcdRunRender();}
 function rcdSetResult(res){window._rrResult=res;['pass','fail'].forEach(function(x){const el=document.getElementById('rr-'+x);if(el)el.classList.toggle('sel',x===res);});}
 async function rcdLogNext(){
   const r=S.rcdRun;if(!r)return;const dev=r.queue[r.idx];
   const ms=document.getElementById('rr-ms')?document.getElementById('rr-ms').value:'';
   const result=window._rrResult||'pass';
   const note=(document.getElementById('rr-note')?document.getElementById('rr-note').value:'')||null;
-  const data={test_date:new Date().toISOString().split('T')[0],trip_time_ms:ms?parseFloat(ms):null,result:result,tested_by:r.user,notes:note};
+  const data={test_date:(r.testDate||new Date().toISOString().split('T')[0]),trip_time_ms:ms?parseFloat(ms):null,result:result,tested_by:r.user,notes:note};
   data[dev.target]=dev.id;
   try{const res=await sb('rcd_tests',{method:'POST',body:JSON.stringify(data)});const nt=Array.isArray(res)?res[0]:res;if(nt)S.tests=[nt,...S.tests];}catch(e){}
   r.results.push({tag:dev.tag,title:dev.title,result:result,ms:ms?parseFloat(ms):null});
@@ -407,6 +407,7 @@ function rcdRunRender(){
   const o=ensureRcdOverlay();const board=S.selectedBoard||{};
   if(r.phase==='scope'){
     const all=rcdRunDevices(false).length,due=rcdRunDevices(true).length,cur=r.onlyDue?due:all;
+    const today=new Date().toISOString().split('T')[0];
     o.innerHTML=`<div class="rcd-head"><button class="back-btn" style="padding:0 0 6px;color:#f0a500" onclick="rcdClose()">← Cancel</button><div class="rcd-title">⚡ Test all RCDs</div><div class="rcd-sub">${esc(board.name||'')}</div></div>
       <div class="rcd-body"><div class="section-label" style="margin-top:0">Which devices?</div>
         <div style="display:flex;gap:8px;margin-bottom:14px">
@@ -414,6 +415,9 @@ function rcdRunRender(){
           <div class="pri-opt ${r.onlyDue?'sel':''}" onclick="rcdSetScope(true)">Due / overdue<br><span style="font-size:17px;font-weight:700">${due}</span></div>
         </div>
         <div class="info-note" style="margin-bottom:14px">RCBOs + shared RCDs. Testing an RCD covers all its MCBs.</div>
+        <label class="field-label">Test date</label>
+        <input class="field-input" id="rr-date" type="date" value="${r.testDate||today}">
+        <div class="info-note" style="margin-bottom:14px">Set an earlier date to record tests done before now.</div>
         <button class="primary-btn" ${cur?'':'disabled style="opacity:.5"'} onclick="rcdStartRun()">${cur?('Start testing '+cur+' device'+(cur>1?'s':'')+' →'):'Nothing to test'}</button>
         <button class="cancel-btn" onclick="rcdClose()">Cancel</button></div>`;
   } else if(r.phase==='step'){
@@ -721,6 +725,23 @@ function cancelRcdModal(){
   closeModal();
 }
 function openEditCircuit(){S._circuitDraft=null;S._rcdReturn=false;openModal('edit');}
+function notifyBar(b){
+  const muted=!!b.notifications_muted;
+  return `<div class="supply-card" style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px">
+    <div style="min-width:0"><div style="font-size:12px;font-weight:700;color:#0d1b2e">${muted?'\ud83d\udd15 Email alerts muted':'\ud83d\udd14 Email alerts on'}</div>
+    <div style="font-size:11px;color:#888;margin-top:1px">${muted?'Daily RCD due-date emails paused for this board.':'Daily RCD due-date emails active.'}</div></div>
+    <button class="supply-edit" onclick="toggleBoardNotify()">${muted?'Enable':'Mute'}</button>
+  </div>`;
+}
+function toggleBoardNotify(){
+  requirePin(function(){
+    const b=S.selectedBoard;const val=!b.notifications_muted;
+    sb('boards?id=eq.'+b.id,{method:'PATCH',body:JSON.stringify({notifications_muted:val})}).then(function(res){
+      const u=Array.isArray(res)?res[0]:res;const merged=Object.assign({},b,u||{},{notifications_muted:val});
+      S.selectedBoard=merged;S.boards=S.boards.map(x=>x.id===merged.id?merged:x);draw();showToast(val?'\ud83d\udd15 Email alerts muted':'\ud83d\udd14 Email alerts on');
+    }).catch(function(e){showToast('Failed: '+e.message);});
+  });
+}
 function supplyCardHtml(b){
   const rows=[];
   const st={single_phase:'Single phase',three_phase:'3-phase'}[b.supply_type];
@@ -756,6 +777,7 @@ function drawBoard(app){
   if(S.tab==='board'){
     h+=supplyCardHtml(b);
     h+=rcdsCardHtml(b);
+    h+=notifyBar(b);
     const rcdN=rcdDeviceCount();
     if(rcdN)h+=`<button class="add-btn" style="width:calc(100% - 20px);margin:8px 10px 2px;justify-content:center" onclick="startRcdRun()">\u26a1 Test all RCDs (${rcdN})</button>`;
     if(rcdN)h+=`<button class="ghost-btn" style="width:calc(100% - 20px);margin:6px 10px 2px;justify-content:center" onclick="generateReport()">\ud83d\udcc4 Compliance report (PDF)</button>`;
